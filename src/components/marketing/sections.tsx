@@ -404,13 +404,13 @@ export function Pricing() {
                   </li>
                 ))}
               </ul>
-              <ButtonLink href="/dashboard" variant={p.featured ? "primary" : "secondary"} className="mt-8 w-full">
-                Start free trial
+              <ButtonLink href="/setup" variant={p.featured ? "primary" : "secondary"} className="mt-8 w-full">
+                Try it free
               </ButtonLink>
             </div>
           ))}
         </div>
-        <p className="mt-6 text-center text-[13px] text-fg-3">14-day free trial on every plan. WhatsApp conversation fees from Meta are passed through at cost.</p>
+        <p className="mt-6 text-center text-[13px] text-fg-3">Free while Reppy is in early access; these prices are a preview. WhatsApp conversation fees from Meta are passed through at cost.</p>
       </div>
     </section>
   );
@@ -461,8 +461,8 @@ export function FinalCta() {
         <h2 className="display text-[clamp(2.8rem,6vw,5rem)]">Let Reppy pick up.</h2>
         <p className="mx-auto mt-5 max-w-lg text-[17px] text-fg-2">Send a photo of your rate card and be answering customers on WhatsApp in minutes.</p>
         <div className="mt-9 flex flex-wrap justify-center gap-3">
-          <ButtonLink href="/dashboard" size="lg" variant="light">
-            Start free trial
+          <ButtonLink href="/setup" size="lg" variant="light">
+            Set up your business
           </ButtonLink>
           <ButtonLink href="#demo" size="lg" variant="secondary">
             Try the demo

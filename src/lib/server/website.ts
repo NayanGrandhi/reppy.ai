@@ -53,7 +53,7 @@ function htmlToText(html: string) {
     .trim();
 }
 
-export async function readWebsite(raw: string): Promise<{ url: string; text: string }> {
+export async function readWebsite(raw: string): Promise<{ url: string; text: string; warning?: string }> {
   let url: URL;
   try {
     url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
@@ -72,7 +72,22 @@ export async function readWebsite(raw: string): Promise<{ url: string; text: str
   if (!res.ok) throw new WebsiteError(`The website returned an error (${res.status}).`);
   const type = res.headers.get("content-type") ?? "";
   if (!type.includes("text/html") && !type.includes("text/plain")) throw new WebsiteError("That link isn't a web page.");
-  const text = htmlToText(await res.text()).slice(0, MAX_CHARS);
-  if (text.length < 40) throw new WebsiteError("Couldn't find readable text on that page.");
-  return { url: url.toString(), text };
+  const html = await res.text();
+  const text = htmlToText(html).slice(0, MAX_CHARS);
+  // Site builders like Wix and some app-style sites load their text with JavaScript,
+  // so a plain read finds little. Say so instead of silently missing prices.
+  const builder = /wixstatic|wix\.com|squarespace|webflow|weebly|godaddysites|framer\.(com|website)|__NEXT_DATA__|id="root"><\/div>|id="app"><\/div>/i.test(html);
+  if (text.length < 40) {
+    throw new WebsiteError(
+      builder
+        ? "This website loads its text in a way Reppy can't read (common with Wix and similar builders). Upload screenshots of your price and contact pages instead."
+        : "Couldn't find readable text on that page. Upload screenshots of it instead.",
+    );
+  }
+  const thin = text.length < 400;
+  const warning =
+    thin || (builder && text.length < 1500)
+      ? "Reppy could only read part of your website (common with Wix and similar builders). Check the prices below, or add screenshots of your price pages."
+      : undefined;
+  return { url: url.toString(), text, warning };
 }

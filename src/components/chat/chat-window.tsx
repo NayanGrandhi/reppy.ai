@@ -39,19 +39,54 @@ export function ChatWindow({ slug, brain, isNew }: { slug: string; brain: Brain;
   const call = async (body: Record<string, unknown>, faqs = sessionFaqs) => {
     setBusy(true);
     setError(null);
+    let started = false;
+    // Show the reply growing in its own bubble as words arrive.
+    const show = (text: string) =>
+      setMessages((m) => {
+        if (!started) {
+          started = true;
+          return [...m, { role: "reppy", text }];
+        }
+        const copy = m.slice();
+        copy[copy.length - 1] = { role: "reppy", text };
+        return copy;
+      });
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ slug, sessionId, history: history().slice(-30), sessionFaqs: faqs, ...body }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
-      setSessionId(data.sessionId ?? null);
-      setLast(data);
-      setMessages((m) => [...m, { role: "reppy", text: data.reply }]);
-      if (data.needsOwner && data.ownerQuestion) setPendingQ(data.ownerQuestion);
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Something went wrong.");
+      }
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          const ev = JSON.parse(line);
+          if (ev.type === "delta") show(ev.text);
+          else if (ev.type === "error") throw new Error(ev.error);
+          else if (ev.type === "done") {
+            show(ev.reply);
+            setSessionId(ev.sessionId ?? null);
+            setLast(ev);
+            if (ev.needsOwner && ev.ownerQuestion) setPendingQ(ev.ownerQuestion);
+          }
+        }
+      }
     } catch (e) {
+      // Drop a half-written reply so the conversation stays clean.
+      if (started) setMessages((m) => m.slice(0, -1));
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);
@@ -134,7 +169,7 @@ export function ChatWindow({ slug, brain, isNew }: { slug: string; brain: Brain;
               </div>
             ),
           )}
-          {busy && (
+          {busy && messages[messages.length - 1]?.role !== "reppy" && (
             <div className="flex gap-1 px-2 pt-1" aria-hidden>
               {[0, 1, 2].map((i) => (
                 <span key={i} className="size-1.5 animate-pulse-soft rounded-full bg-fg-3" style={{ animationDelay: `${i * 200}ms` }} />
@@ -164,6 +199,11 @@ export function ChatWindow({ slug, brain, isNew }: { slug: string; brain: Brain;
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </form>
+        <p className="bg-[#13241f] px-4 pb-3 text-[11.5px] leading-snug text-fg-3">
+          {brain.type === "Clinic"
+            ? "Demo chat with an AI. The words of clinic chats aren't stored. Please don't share personal health details; for emergencies call 112."
+            : "Demo chat with an AI. Chats are kept for 30 days to improve replies, then deleted. Please don't share personal or payment details."}
+        </p>
       </div>
 
       <aside className="space-y-4">

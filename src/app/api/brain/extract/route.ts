@@ -2,13 +2,13 @@ import { BUSINESS_TYPES, type Brain } from "@/lib/brain/schema";
 import { checkCompleteness } from "@/lib/brain/templates";
 import { AiNotConfigured, extractBrain, type SourceInput } from "@/lib/server/ai";
 import { LIMITS, clientIp, rateLimited, setupCodeOk } from "@/lib/server/limits";
+import { bumpAppExtractions } from "@/lib/server/store";
 import { WebsiteError, readWebsite } from "@/lib/server/website";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
-let extractionsToday = { day: "", n: 0 };
 
 const fail = (status: number, error: string) => Response.json({ error }, { status });
 
@@ -18,9 +18,6 @@ export async function POST(req: Request) {
   if (!setupCodeOk(form.get("code")?.toString())) return fail(401, "That access code isn't right.");
   if (rateLimited(`extract:${clientIp(req)}`, 6, 10 * 60_000)) return fail(429, "Too many setups in a short time. Wait a few minutes and try again.");
 
-  const today = new Date().toISOString().slice(0, 10);
-  if (extractionsToday.day !== today) extractionsToday = { day: today, n: 0 };
-  if (extractionsToday.n >= LIMITS.extractionsPerDay) return fail(429, "Today's setup limit is reached. It resets at midnight UTC.");
 
   const sources: SourceInput[] = [];
   const labels: { kind: "website" | "image" | "pdf" | "text"; label: string }[] = [];
@@ -49,6 +46,7 @@ export async function POST(req: Request) {
       const site = await readWebsite(url);
       sources.push({ kind: "website", url: site.url, text: site.text });
       labels.push({ kind: "website", label: site.url });
+      if (site.warning) warnings.push(site.warning);
     } catch (e) {
       warnings.push(e instanceof WebsiteError ? e.message : "Couldn't open that website.");
     }
@@ -65,8 +63,10 @@ export async function POST(req: Request) {
   const hint = form.get("type")?.toString();
   const typeHint = (BUSINESS_TYPES as readonly string[]).includes(hint ?? "") ? (hint as Brain["type"]) : undefined;
 
+  // Counted only when we're actually about to call the AI.
+  if ((await bumpAppExtractions()) > LIMITS.extractionsPerDay) return fail(429, "Today's setup limit is reached. Try again tomorrow.");
+
   try {
-    extractionsToday.n++;
     const result = await extractBrain(sources, typeHint);
     return Response.json({ ...result, checks: checkCompleteness(result.brain), sources: labels, warnings });
   } catch (e) {

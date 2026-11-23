@@ -119,7 +119,7 @@ export function Hero() {
             </ButtonLink>
           </motion.div>
           <motion.p {...rise(0.74)} className="mt-6 text-[13px] text-fg-3">
-            14-day free trial. Works with WhatsApp Business. No card needed.
+            Free to try while Reppy is in early access. No card needed.
           </motion.p>
         </div>
 

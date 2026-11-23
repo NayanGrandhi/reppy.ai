@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppHeader } from "@/components/app-header";
+import { rememberBusiness } from "@/components/chat/my-businesses";
 import { ReviewStep } from "@/components/setup/review-step";
 import { type ShareInput, ShareStep } from "@/components/setup/share-step";
 import { useStatus } from "@/components/setup/use-status";
@@ -58,6 +59,7 @@ export default function SetupPage() {
       const res = await fetch("/api/brain", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ brain, sources, code }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Couldn't save.");
+      rememberBusiness({ slug: data.slug, name: brain.name, type: brain.type });
       router.push(`/chat/${data.slug}?new=1`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save.");

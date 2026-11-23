@@ -127,10 +127,11 @@ function bizRow(b: Brain) {
 }
 
 // ───────── public API ─────────
-export async function listBrains(): Promise<StoredBrain[]> {
+/** Sample businesses only. Businesses people set up stay private: they open only by their link. */
+export async function listDemoBrains(): Promise<StoredBrain[]> {
   const supa = db();
-  if (!supa) return [...mem().brains.values()].sort((a, b) => Number(b.isDemo) - Number(a.isDemo));
-  const { data, error } = await supa.from("businesses").select("slug, name, type, is_demo, updated_at").order("is_demo", { ascending: false }).order("updated_at", { ascending: false }).limit(50);
+  if (!supa) return [...mem().brains.values()].filter((b) => b.isDemo);
+  const { data, error } = await supa.from("businesses").select("slug, name, type, is_demo, updated_at").eq("is_demo", true).order("name").limit(20);
   if (error) throw error;
   // Lightweight list: only what the picker needs.
   return (data ?? []).map((r: Row) => ({
@@ -154,7 +155,9 @@ export async function getBrain(slug: string): Promise<StoredBrain | null> {
 }
 
 async function uniqueSlug(name: string, exists: (s: string) => Promise<boolean>) {
-  const base = slugify(name);
+  // A random tail makes private links hard to guess.
+  const tail = Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
+  const base = `${slugify(name)}-${tail}`;
   let slug = base;
   for (let i = 2; await exists(slug); i++) slug = `${base}-${i}`;
   return slug;
@@ -226,9 +229,21 @@ export async function bumpUsage(slug: string, kind: "message" | "extraction"): P
   return data as number;
 }
 
-export async function logExchange(slug: string, sessionId: string | null, rows: { role: "customer" | "reppy" | "owner"; text: string; intent?: string; language?: string }[]): Promise<string | null> {
+export const REDACTED = "[not stored: clinic conversation]";
+
+/**
+ * Saves a chat exchange. For clinics only intent and language are kept, never
+ * the words, so no health details end up in the database.
+ */
+export async function logExchange(
+  slug: string,
+  sessionId: string | null,
+  rows: { role: "customer" | "reppy" | "owner"; text: string; intent?: string; language?: string }[],
+  opts: { redact?: boolean } = {},
+): Promise<string | null> {
   const supa = db();
   if (!supa) return sessionId;
+  if (opts.redact) rows = rows.map((r) => ({ ...r, text: REDACTED }));
   const { data: biz } = await supa.from("businesses").select("id").eq("slug", slug).single();
   if (!biz) return sessionId;
   let sid = sessionId;
@@ -238,4 +253,18 @@ export async function logExchange(slug: string, sessionId: string | null, rows: 
   }
   if (sid) await supa.from("chat_messages").insert(rows.map((r) => ({ session_id: sid, business_id: biz.id, role: r.role, text: r.text, intent: r.intent ?? null, language: r.language ?? null })));
   return sid;
+}
+
+/** App-wide count of setups today (all visitors together). */
+export async function bumpAppExtractions(): Promise<number> {
+  const supa = db();
+  if (!supa) {
+    const key = `app:extractions:${new Date().toISOString().slice(0, 10)}`;
+    const n = (mem().usage.get(key) ?? 0) + 1;
+    mem().usage.set(key, n);
+    return n;
+  }
+  const { data, error } = await supa.rpc("bump_app_extractions");
+  if (error) throw error;
+  return data as number;
 }

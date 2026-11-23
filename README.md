@@ -37,6 +37,11 @@ Without the Supabase keys the app still works, but saved businesses live in memo
 
 **Database:** the live project is `reppy` (Mumbai, `https://sqggxhfetsqdmjkwgagy.supabase.co`). Its tables come from `supabase/migrations/0001_init.sql` and the sample businesses from `supabase/seed.sql` (or `npm run seed`).
 
+**Privacy:** businesses you set up get an unguessable link and aren't listed publicly. Clinic chats store
+only intent and language, never the words. All demo chats are deleted after 30 days (a nightly
+Supabase cron job, `purge_old_chats`). Reppy's first reply always starts with an "I'm an AI assistant"
+line added by the server (`aiIntro()` in `src/lib/server/ai.ts`).
+
 **Costs:** setup uses Claude Sonnet 5.5, chat uses Claude Haiku 5.5. Set a monthly spend limit in the Claude Console.
 Built-in caps: 200 AI replies per business per day, 30 setups per day, 800-character messages, 4 MB uploads.
 
