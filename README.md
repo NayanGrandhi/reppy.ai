@@ -35,7 +35,7 @@ Copy `.env.example` to `.env.local` and fill in:
 
 Without the Supabase keys the app still works, but saved businesses live in memory and disappear on restart.
 
-**Database:** in the Supabase SQL editor, run `supabase/migrations/0001_init.sql`, then load the sample businesses with `npm run seed`.
+**Database:** the live project is `reppy` (Mumbai, `https://sqggxhfetsqdmjkwgagy.supabase.co`). Its tables come from `supabase/migrations/0001_init.sql` and the sample businesses from `supabase/seed.sql` (or `npm run seed`).
 
 **Costs:** setup uses Claude Sonnet 5.5, chat uses Claude Haiku 5.5. Set a monthly spend limit in the Claude Console.
 Built-in caps: 200 AI replies per business per day, 30 setups per day, 800-character messages, 4 MB uploads.

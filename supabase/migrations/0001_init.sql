@@ -126,8 +126,14 @@ create table if not exists public.usage_daily (
 create index if not exists idx_services_business on public.services (business_id);
 create index if not exists idx_staff_business on public.staff (business_id);
 create index if not exists idx_faqs_business on public.faqs (business_id);
+create index if not exists idx_policies_business on public.policies (business_id);
+create index if not exists idx_sources_business on public.sources (business_id);
+create index if not exists idx_sessions_business on public.chat_sessions (business_id);
 create index if not exists idx_messages_session on public.chat_messages (session_id, created_at);
+create index if not exists idx_messages_business on public.chat_messages (business_id);
 create index if not exists idx_gaps_business on public.knowledge_gaps (business_id, status);
+create index if not exists idx_gaps_session on public.knowledge_gaps (session_id);
+create index if not exists idx_businesses_owner on public.businesses (owner_id);
 
 -- Atomic usage increment, returns the new count for today.
 create or replace function public.bump_usage(p_business uuid, p_kind text)
@@ -161,10 +167,10 @@ alter table public.usage_daily    enable row level security;
 -- Owners manage their own business row.
 drop policy if exists "owner reads business" on public.businesses;
 create policy "owner reads business" on public.businesses
-  for select using (owner_id = auth.uid());
+  for select using (owner_id = (select auth.uid()));
 drop policy if exists "owner updates business" on public.businesses;
 create policy "owner updates business" on public.businesses
-  for update using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+  for update using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
 
 -- Every child table: allowed only when the parent business belongs to you.
 do $$
@@ -173,7 +179,7 @@ begin
   foreach t in array array['staff','services','opening_hours','policies','faqs','sources','chat_sessions','chat_messages','knowledge_gaps','usage_daily'] loop
     execute format('drop policy if exists "owner access" on public.%I', t);
     execute format(
-      'create policy "owner access" on public.%I for all using (business_id in (select id from public.businesses where owner_id = auth.uid())) with check (business_id in (select id from public.businesses where owner_id = auth.uid()))',
+      'create policy "owner access" on public.%I for all using (business_id in (select id from public.businesses where owner_id = (select auth.uid()))) with check (business_id in (select id from public.businesses where owner_id = (select auth.uid())))',
       t
     );
   end loop;
