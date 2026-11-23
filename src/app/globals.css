@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/* ───────────────── Reppy design tokens ─────────────────
+   Ink / surfaces: deep indigo-black, never neutral grey.
+   Violet = primary action + brand. Saffron = rare warm accent.
+   Chart series (validated for dark surface, CVD-safe):
+   violet #8B7BFF · teal #25A08D · saffron #CC7D35 · rose #D2629E
+*/
+@theme {
+  --color-ink-950: #08071a;
+  --color-ink-900: #0c0b1f;
+  --color-ink-850: #110f1e;
+  --color-ink-800: #161429;
+  --color-ink-700: #1f1c38;
+  --color-ink-600: #2b2749;
+
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.14);
+
+  --color-fg: #eeecf8;
+  --color-fg-2: #b4b0cc;
+  --color-fg-3: #7f7a9c;
+
+  --color-violet-300: #c4baff;
+  --color-violet-400: #a597ff;
+  --color-violet-500: #8b7bff;
+  --color-violet-600: #6f5cf0;
+  --color-violet-700: #5442c9;
+
+  --color-saffron-400: #f2ab6a;
+  --color-saffron-500: #e8934a;
+
+  --color-teal-400: #3fbfa9;
+  --color-teal-500: #25a08d;
+  --color-rose-500: #d2629e;
+
+  --color-good: #3fbfa9;
+  --color-warn: #f2ab6a;
+  --color-bad: #f07185;
+
+  --color-series-1: #8b7bff;
+  --color-series-2: #25a08d;
+  --color-series-3: #cc7d35;
+  --color-series-4: #d2629e;
+
+  --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Serif", "Tiro Devanagari Hindi", Georgia, serif;
+  --font-deva: "Tiro Devanagari Hindi", "Instrument Serif", serif;
+
+  --radius-xl: 14px;
+  --radius-2xl: 20px;
+  --radius-3xl: 28px;
+
+  --animate-wave: wave 1.1s ease-in-out infinite;
+  --animate-orb-spin: orb-spin 28s linear infinite;
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+}
+
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+@keyframes orb-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+html {
+  background: var(--color-ink-950);
+  color: var(--color-fg);
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  line-height: 1.5;
+}
+
+::selection { background: rgb(139 123 255 / 0.35); }
+
+:focus-visible {
+  outline: 2px solid var(--color-violet-400);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* thin, quiet scrollbars inside the app */
+.scroll-thin { scrollbar-width: thin; scrollbar-color: var(--color-ink-600) transparent; }
+
+/* Display type — Instrument Serif is a single weight; we use size + tracking for hierarchy */
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+}
+
+/* The faint square grid used behind marketing sections (Hamming reference) */
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, black 30%, transparent 85%);
+}
+
+/* App surfaces */
+.panel {
+  background: var(--color-ink-850);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-2xl);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
