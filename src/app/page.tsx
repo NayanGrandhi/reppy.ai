@@ -26,6 +26,17 @@ export default function Home() {
               Pick a scenario and press play. On the right you&apos;ll see what Reppy understands as the conversation happens: intent, details, the booking and the summary the owner receives.
             </SectionHead>
             <InteractiveDemo />
+            <p className="mt-6 text-[14px] text-fg-3">
+              These are scripted.{" "}
+              <a href="/chat" className="text-violet-300 underline decoration-violet-500/40 underline-offset-4 hover:text-violet-400">
+                Chat with the real AI
+              </a>{" "}
+              or{" "}
+              <a href="/setup" className="text-violet-300 underline decoration-violet-500/40 underline-offset-4 hover:text-violet-400">
+                set up your own business
+              </a>
+              .
+            </p>
           </div>
         </section>
         <Features />

@@ -14,6 +14,7 @@ const links = [
   { href: "#how", label: "How it works" },
   { href: "#industries", label: "Industries" },
   { href: "#pricing", label: "Pricing" },
+  { href: "/chat", label: "Live chat" },
 ];
 
 export function Nav() {

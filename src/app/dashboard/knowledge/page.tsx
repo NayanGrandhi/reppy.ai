@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, FileText, Globe, Image as ImageIcon, Mic, 
 import { useState } from "react";
 import { Panel, PageHeader } from "@/components/dashboard/shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Input, Segmented, Textarea } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
 import { DEMO_TODAY, getBusiness, getChangeLog, getFaqs, getKnowledgeGaps, getServices, getStaff } from "@/lib/services";
@@ -31,9 +31,9 @@ export default function KnowledgePage() {
         title="Knowledge Base"
         description="Everything Reppy is allowed to tell customers. Update it here, or just message Reppy on WhatsApp: “Haircut is now 400”."
         actions={
-          <Button variant="secondary" onClick={() => toast("Upload a PDF, photo of a rate card, or paste your website link")}>
+          <ButtonLink variant="secondary" href="/setup">
             <Upload className="size-4" /> Add a source
-          </Button>
+          </ButtonLink>
         }
       />
       <Segmented
