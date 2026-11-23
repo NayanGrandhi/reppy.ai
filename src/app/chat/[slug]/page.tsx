@@ -24,13 +24,13 @@ export default async function ChatPage({ params, searchParams }: Props) {
   return (
     <>
       <AppHeader active="chat" />
-      <main className="mx-auto max-w-6xl px-5 py-8 md:px-8">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <main className="mx-auto max-w-6xl px-3 py-4 sm:px-5 md:px-8 md:py-8">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 px-1 md:mb-6">
           <div>
             <Link href="/chat" className="text-[13px] text-fg-3 hover:text-fg">
               All businesses
             </Link>
-            <h1 className="display mt-1 text-[40px] md:text-[48px]">Chat as a customer</h1>
+            <h1 className="display mt-1 hidden text-[40px] sm:block md:text-[48px]">Chat as a customer</h1>
           </div>
           <span className="rounded-full border border-dashed border-line-strong px-3 py-1 text-[12.5px] text-fg-3">
             {stored.isDemo ? "Sample business" : "Your business"}

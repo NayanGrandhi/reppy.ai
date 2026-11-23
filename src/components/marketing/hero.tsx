@@ -9,12 +9,10 @@ import { cn } from "@/lib/utils";
 import { Orb } from "./orb";
 
 const links = [
-  { href: "#demo", label: "Demo" },
   { href: "#features", label: "Features" },
   { href: "#how", label: "How it works" },
   { href: "#industries", label: "Industries" },
   { href: "#pricing", label: "Pricing" },
-  { href: "/chat", label: "Live chat" },
 ];
 
 export function Nav() {
@@ -39,10 +37,10 @@ export function Nav() {
         </nav>
         <div className="ml-auto hidden items-center gap-2 md:flex md:ml-0">
           <Link href="/dashboard" className="px-3 text-[14px] text-fg-2 hover:text-fg">
-            Log in
+            Dashboard
           </Link>
-          <ButtonLink href="/dashboard" size="sm">
-            Open dashboard
+          <ButtonLink href="/chat" size="sm">
+            Try it live
           </ButtonLink>
         </div>
         <button className="ml-auto rounded-lg p-2 md:hidden" onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open}>
@@ -56,8 +54,11 @@ export function Nav() {
               {l.label}
             </a>
           ))}
-          <ButtonLink href="/dashboard" className="mt-3 w-full">
-            Open dashboard
+          <a href="/dashboard" onClick={() => setOpen(false)} className="block py-2.5 text-fg-2">
+            Dashboard
+          </a>
+          <ButtonLink href="/chat" className="mt-3 w-full">
+            Try it live
           </ButtonLink>
         </div>
       )}
@@ -111,11 +112,11 @@ export function Hero() {
             Set it up in two minutes from a photo of your rate card.
           </motion.p>
           <motion.div {...rise(0.62)} className="mt-9 flex flex-wrap items-center gap-3">
-            <ButtonLink href="#demo" size="lg" variant="light">
-              Try the live demo
+            <ButtonLink href="/chat" size="lg" variant="light">
+              Chat with Reppy
             </ButtonLink>
-            <ButtonLink href="/dashboard" size="lg" variant="secondary">
-              See the dashboard
+            <ButtonLink href="#demo" size="lg" variant="secondary">
+              Watch a demo
             </ButtonLink>
           </motion.div>
           <motion.p {...rise(0.74)} className="mt-6 text-[13px] text-fg-3">

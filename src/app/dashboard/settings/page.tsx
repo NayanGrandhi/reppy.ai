@@ -61,6 +61,11 @@ export default function SettingsPage() {
                 </Field>
               </div>
             </div>
+            <div className="mt-5 flex justify-end">
+              <Button size="sm" onClick={() => toast("Business details saved")}>
+                Save business details
+              </Button>
+            </div>
           </Panel>
 
           <Panel title="Team & admin numbers" action={<Button size="sm" variant="secondary" onClick={() => toast("Verification code sent on WhatsApp")}><Plus className="size-3.5" /> Add number</Button>}>

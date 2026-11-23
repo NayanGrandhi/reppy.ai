@@ -1,14 +1,12 @@
 "use client";
 import {
   BarChart3,
-  Bell,
   BookOpen,
   Bot,
   CalendarDays,
   LayoutGrid,
   Menu,
   MessagesSquare,
-  Search,
   Settings,
   Users,
   X,
@@ -16,6 +14,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useState } from "react";
+import { DashboardSearch, Notifications } from "@/components/dashboard/search";
 import { Avatar } from "@/components/ui/avatar";
 import { Logo } from "@/components/ui/logo";
 import { ToastProvider, useToast } from "@/components/ui/toast";
@@ -110,13 +109,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
         Sample data
       </span>
       <div className="ml-auto flex items-center gap-2">
-        <label className="relative hidden md:block">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-3" />
-          <input
-            placeholder="Search customers, bookings…"
-            className="h-9 w-64 rounded-full bg-white/[0.04] pr-3 pl-9 text-[13px] ring-1 ring-line outline-none placeholder:text-fg-3 focus:ring-violet-500/50"
-          />
-        </label>
+        <DashboardSearch />
         <button
           onClick={() => {
             setLive(!live);
@@ -131,10 +124,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
           <span className={cn("size-2 rounded-full bg-current", live && "animate-pulse-soft")} />
           {live ? "Reppy is live" : "Bookings paused"}
         </button>
-        <button className="relative rounded-full p-2 text-fg-2 hover:bg-white/5" aria-label="Notifications">
-          <Bell className="size-[18px]" />
-          <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-saffron-500 ring-2 ring-ink-950" />
-        </button>
+<Notifications />
       </div>
     </header>
   );

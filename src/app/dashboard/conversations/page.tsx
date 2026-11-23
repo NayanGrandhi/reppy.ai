@@ -1,7 +1,7 @@
 "use client";
 import { ArrowLeft, Mic, Search, Send, Sparkles } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { ChannelIcon, StatusBadge, statusMeta } from "@/components/dashboard/bits";
 import { PageHeader } from "@/components/dashboard/shell";
 import { Avatar } from "@/components/ui/avatar";
@@ -23,6 +23,15 @@ function ConversationsInner() {
   const [selected, setSelected] = useState<string | null>(params.get("id") ?? items[0]?.id ?? null);
   const [mobileDetail, setMobileDetail] = useState(Boolean(params.get("id")));
   const [draft, setDraft] = useState("");
+
+  // Follow links from search and notifications while already on this page.
+  useEffect(() => {
+    const id = params.get("id");
+    if (id) {
+      setSelected(id);
+      setMobileDetail(true);
+    }
+  }, [params]);
 
   const filtered = useMemo(
     () =>

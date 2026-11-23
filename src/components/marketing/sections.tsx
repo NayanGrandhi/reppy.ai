@@ -23,7 +23,7 @@ import { Orb } from "./orb";
 
 export function SectionHead({ title, children, center }: { title: React.ReactNode; children?: React.ReactNode; center?: boolean }) {
   return (
-    <div className={cn("mb-14 max-w-2xl", center && "mx-auto text-center")}>
+    <div className={cn("mb-12 max-w-2xl", center && "mx-auto text-center")}>
       <h2 className="display text-[clamp(2.4rem,4.6vw,3.9rem)]">{title}</h2>
       {children && <p className="mt-5 text-[17px] leading-relaxed text-fg-2">{children}</p>}
     </div>
@@ -127,7 +127,7 @@ export function Features() {
     { icon: BellRing, title: "Reminders that cut no-shows", body: "Approved WhatsApp reminders 24 hours and 2 hours before every appointment." },
   ];
   return (
-    <section id="features" className="relative scroll-mt-20 py-28 md:py-36">
+    <section id="features" className="relative scroll-mt-20 py-24 md:py-28">
       <div className="mx-auto max-w-7xl px-5 md:px-8">
         <SectionHead title={<>Built for how Indian businesses actually run</>}>
           Most AI receptionists are English-only and phone-only. Reppy lives where your customers already are — WhatsApp — and picks up the phone too, with one shared memory.
@@ -176,7 +176,7 @@ export function HowItWorks() {
     { title: "Go live on WhatsApp", body: "Connect your WhatsApp Business number. Reppy starts answering, booking and sending you a report every evening." },
   ];
   return (
-    <section id="how" className="relative scroll-mt-20 border-t border-line py-28 md:py-36">
+    <section id="how" className="relative scroll-mt-20 border-t border-line py-24 md:py-28">
       <div className="mx-auto max-w-7xl px-5 md:px-8">
         <SectionHead title="From rate card to receptionist in three steps" />
         <ol className="grid gap-10 md:grid-cols-3">
@@ -249,7 +249,7 @@ export function Industries() {
   const [k, setK] = useState<keyof typeof industries>("Salon");
   const ind = industries[k];
   return (
-    <section id="industries" className="relative scroll-mt-20 border-t border-line py-28 md:py-36">
+    <section id="industries" className="relative scroll-mt-20 border-t border-line py-24 md:py-28">
       <div className="mx-auto max-w-7xl px-5 md:px-8">
         <SectionHead title="One brain, any business">
           Reppy detects your business type and applies a ready template. If nothing fits, start generic and add your own questions.
@@ -297,7 +297,7 @@ export function ReportShowcase() {
     ["Est. revenue booked*", "₹29,600"],
   ];
   return (
-    <section className="relative overflow-hidden border-t border-line py-28 md:py-36">
+    <section className="relative overflow-hidden border-t border-line py-24 md:py-28">
       <div className="pointer-events-none absolute top-1/2 right-[-10%] size-[600px] -translate-y-1/2 rounded-full bg-violet-600/15 blur-3xl" />
       <div className="relative mx-auto grid max-w-7xl items-center gap-16 px-5 md:px-8 lg:grid-cols-2">
         <div>
@@ -367,7 +367,7 @@ export function Pricing() {
   ];
   const price = (p: number) => (yearly === "yearly" ? Math.round((p * 10) / 12) : p);
   return (
-    <section id="pricing" className="relative scroll-mt-20 border-t border-line py-28 md:py-36">
+    <section id="pricing" className="relative scroll-mt-20 border-t border-line py-24 md:py-28">
       <div className="mx-auto max-w-7xl px-5 md:px-8">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <SectionHead title="Costs less than a part-time receptionist">

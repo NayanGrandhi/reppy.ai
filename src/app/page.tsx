@@ -20,7 +20,7 @@ export default function Home() {
       <main>
         <Hero />
         <MadeFor />
-        <section id="demo" className="relative scroll-mt-20 py-28 md:py-36">
+        <section id="demo" className="relative scroll-mt-20 py-24 md:py-28">
           <div className="mx-auto max-w-7xl px-5 md:px-8">
             <SectionHead title="Hear Reppy at work">
               Pick a scenario and press play. On the right you&apos;ll see what Reppy understands as the conversation happens: intent, details, the booking and the summary the owner receives.

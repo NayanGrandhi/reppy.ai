@@ -1,6 +1,6 @@
 "use client";
 import { FileText, Globe, ImagePlus, Loader2, Mic, Upload, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/controls";
 import { BUSINESS_TYPES } from "@/lib/brain/schema";
@@ -98,19 +98,13 @@ export function ShareStep({
           </Button>
           <input ref={input} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(e) => add(e.target.files)} />
           {files.length > 0 && (
-            <ul className="mx-auto mt-6 max-w-md space-y-2 text-left">
+            <ul className="mx-auto mt-6 grid max-w-lg grid-cols-3 gap-3 text-left sm:grid-cols-4">
               {files.map((f, i) => (
-                <li key={`${f.name}-${i}`} className="flex items-center gap-3 rounded-xl bg-ink-800 px-3 py-2 text-[13.5px] ring-1 ring-line">
-                  {f.type === "application/pdf" ? <FileText className="size-4 text-fg-3" /> : <ImagePlus className="size-4 text-fg-3" />}
-                  <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                  <span className="text-[12px] text-fg-3 tabular-nums">{Math.round(f.size / 1024)} KB</span>
-                  <button type="button" onClick={() => setFiles((x) => x.filter((_, j) => j !== i))} aria-label={`Remove ${f.name}`} className="rounded p-0.5 text-fg-3 hover:text-fg">
-                    <X className="size-3.5" />
-                  </button>
-                </li>
+                <Thumb key={`${f.name}-${i}`} file={f} onRemove={() => setFiles((x) => x.filter((_, j) => j !== i))} />
               ))}
             </ul>
           )}
+          {files.length > 0 && <p className="mt-3 text-[12px] text-fg-3 tabular-nums">{(total / 1024 / 1024).toFixed(1)} MB of 4 MB</p>}
           {fileError && <p className="mt-4 text-[13px] text-saffron-400">{fileError}</p>}
         </div>
 
@@ -182,5 +176,36 @@ export function ShareStep({
         </div>
       </aside>
     </div>
+  );
+}
+
+function Thumb({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file.type.startsWith("image/")) return;
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
+  return (
+    <li className="group relative aspect-square overflow-hidden rounded-xl bg-ink-800 ring-1 ring-line">
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={file.name} className="size-full object-cover" />
+      ) : (
+        <div className="grid size-full place-items-center p-2 text-center">
+          <FileText className="size-6 text-fg-3" />
+          <span className="line-clamp-2 text-[11px] break-all text-fg-3">{file.name}</span>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${file.name}`}
+        className="absolute top-1.5 right-1.5 grid size-6 place-items-center rounded-full bg-ink-950/80 text-fg-2 opacity-90 ring-1 ring-white/10 transition hover:text-fg sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+      >
+        <X className="size-3.5" />
+      </button>
+    </li>
   );
 }

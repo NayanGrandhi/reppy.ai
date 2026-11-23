@@ -1,5 +1,6 @@
 "use client";
-import { motion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -7,8 +8,16 @@ import { cn } from "@/lib/utils";
  * When `speaking` is true it breathes and a ring of sound bars appears.
  */
 export function Orb({ speaking = false, size = 360, className }: { speaking?: boolean; size?: number; className?: string }) {
+  // Animations stop while the orb is off-screen, which keeps scrolling smooth on phones.
+  const ref = useRef<HTMLDivElement>(null);
+  const visible = useInView(ref, { margin: "100px" });
   return (
-    <div className={cn("relative isolate grid place-items-center", className)} style={{ width: size, height: size }} aria-hidden>
+    <div
+      ref={ref}
+      className={cn("relative isolate grid place-items-center", !visible && "[&_*]:[animation-play-state:paused]", className)}
+      style={{ width: size, height: size }}
+      aria-hidden
+    >
       {/* outer glow */}
       <div className="absolute inset-[-18%] -z-10 rounded-full bg-[radial-gradient(circle,rgb(139_123_255/0.35),rgb(232_147_74/0.08)_45%,transparent_70%)] blur-2xl" />
       {/* orbit rings */}
@@ -16,11 +25,11 @@ export function Orb({ speaking = false, size = 360, className }: { speaking?: bo
       <div className="absolute inset-[-14%] rounded-full border border-dashed border-violet-400/10 animate-orb-spin" />
       <motion.div
         className="relative size-full overflow-hidden rounded-full"
-        animate={speaking ? { scale: [1, 1.035, 0.99, 1.03, 1] } : { scale: [1, 1.012, 1] }}
-        transition={{ duration: speaking ? 1.6 : 6, repeat: Infinity, ease: "easeInOut" }}
+        animate={!visible ? { scale: 1 } : speaking ? { scale: [1, 1.035, 0.99, 1.03, 1] } : { scale: [1, 1.012, 1] }}
+        transition={{ duration: speaking ? 1.6 : 6, repeat: visible ? Infinity : 0, ease: "easeInOut" }}
       >
         <div
-          className="absolute inset-[-25%] animate-orb-spin"
+          className="absolute inset-[-25%] animate-orb-spin will-change-transform"
           style={{
             background:
               "conic-gradient(from 180deg at 50% 50%, #2a1f7a, #8b7bff, #f2ab6a, #6f5cf0, #1b1650, #c4baff, #2a1f7a)",
@@ -37,7 +46,7 @@ export function Orb({ speaking = false, size = 360, className }: { speaking?: bo
           ))}
         </svg>
       </motion.div>
-      {speaking && (
+      {speaking && visible && (
         <div className="absolute inset-0 grid place-items-center">
           <Waveform bars={7} className="h-10" light />
         </div>

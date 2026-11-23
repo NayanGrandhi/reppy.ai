@@ -1,8 +1,9 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { rememberBusiness } from "@/components/chat/my-businesses";
+import { ExtractProgress } from "@/components/setup/extract-progress";
 import { ReviewStep } from "@/components/setup/review-step";
 import { type ShareInput, ShareStep } from "@/components/setup/share-step";
 import { useStatus } from "@/components/setup/use-status";
@@ -11,6 +12,8 @@ import type { Brain, Missing } from "@/lib/brain/schema";
 import { cn } from "@/lib/utils";
 
 type Source = { kind: "website" | "image" | "pdf" | "text"; label: string };
+type Draft = { brain: Brain; missing: Missing[]; warnings: string[]; sources: Source[] };
+const DRAFT_KEY = "reppy.setupDraft";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -23,11 +26,46 @@ export default function SetupPage() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [code, setCode] = useState("");
+  const [reading, setReading] = useState<{ files: number; url: boolean } | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const saved = useRef(false);
+
+  // Keep the review in this browser tab so a refresh doesn't lose edits.
+  useEffect(() => {
+    try {
+      const d = sessionStorage.getItem(DRAFT_KEY);
+      if (d) setDraft(JSON.parse(d));
+    } catch {}
+  }, []);
+  useEffect(() => {
+    if (step !== "review" || !brain) return;
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ brain, missing, warnings, sources }));
+    } catch {}
+  }, [step, brain, missing, warnings, sources]);
+  useEffect(() => {
+    if (step !== "review") return;
+    const warn = (e: BeforeUnloadEvent) => {
+      if (!saved.current) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [step]);
+
+  const openReview = (d: Draft) => {
+    setBrain(d.brain);
+    setMissing(d.missing);
+    setWarnings(d.warnings);
+    setSources(d.sources);
+    setStep("review");
+    window.scrollTo({ top: 0 });
+  };
 
   const extract = async (input: ShareInput) => {
     setBusy(true);
     setError(null);
     setCode(input.code);
+    setReading({ files: input.files.length, url: Boolean(input.url.trim()) });
     const form = new FormData();
     input.files.forEach((f) => form.append("files", f));
     form.set("url", input.url);
@@ -38,16 +76,12 @@ export default function SetupPage() {
       const res = await fetch("/api/brain/extract", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
-      setBrain(data.brain);
-      setMissing(data.missing ?? []);
-      setWarnings(data.warnings ?? []);
-      setSources(data.sources ?? []);
-      setStep("review");
-      window.scrollTo({ top: 0 });
+      openReview({ brain: data.brain, missing: data.missing ?? [], warnings: data.warnings ?? [], sources: data.sources ?? [] });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);
+      setReading(null);
     }
   };
 
@@ -60,6 +94,10 @@ export default function SetupPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Couldn't save.");
       rememberBusiness({ slug: data.slug, name: brain.name, type: brain.type });
+      saved.current = true;
+      try {
+        sessionStorage.removeItem(DRAFT_KEY);
+      } catch {}
       router.push(`/chat/${data.slug}?new=1`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save.");
@@ -93,6 +131,31 @@ export default function SetupPage() {
             <p className="mt-3 mb-10 max-w-2xl text-[16px] text-fg-2">
               Share anything you already have. Reppy reads it, builds a business brain, and shows you what it learned before anything goes live.
             </p>
+            {draft && !reading && (
+              <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-violet-500/[0.08] px-5 py-4 ring-1 ring-violet-500/25">
+                <p className="text-[14px]">
+                  You have an unsaved review for <span className="font-medium">{draft.brain.name || "a business"}</span>.
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => openReview(draft)} className="rounded-full bg-violet-500 px-4 py-1.5 text-[13px] font-medium text-white hover:bg-violet-400">
+                    Continue
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDraft(null);
+                      try {
+                        sessionStorage.removeItem(DRAFT_KEY);
+                      } catch {}
+                    }}
+                    className="rounded-full px-4 py-1.5 text-[13px] text-fg-3 hover:text-fg"
+                  >
+                    Discard
+                  </button>
+                </div>
+              </div>
+            )}
+            {reading && <ExtractProgress fileCount={reading.files} hasUrl={reading.url} />}
+            <div className={reading ? "hidden" : ""}>
             <ShareStep
               status={status}
               busy={busy}
@@ -100,13 +163,10 @@ export default function SetupPage() {
               onSubmit={extract}
               onUseSample={(slug) => {
                 const d = demoBrains.find((b) => b.slug === slug)!;
-                setBrain({ ...structuredClone(d.brain), name: `${d.brain.name} (copy)` });
-                setMissing([]);
-                setWarnings([]);
-                setSources([{ kind: "text", label: `Sample: ${d.brain.name}` }]);
-                setStep("review");
+                openReview({ brain: { ...structuredClone(d.brain), name: `${d.brain.name} (copy)` }, missing: [], warnings: [], sources: [{ kind: "text", label: `Sample: ${d.brain.name}` }] });
               }}
             />
+            </div>
           </>
         ) : (
           brain && (
@@ -122,6 +182,10 @@ export default function SetupPage() {
                 error={error}
                 onSave={save}
                 onBack={() => {
+                  try {
+                    sessionStorage.removeItem(DRAFT_KEY);
+                  } catch {}
+                  setDraft(null);
                   setStep("share");
                   setBrain(null);
                   setError(null);

@@ -1,6 +1,7 @@
 "use client";
 import { ArrowDownUp, Download, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 import { ChannelIcon, StatusBadge, apptMeta } from "@/components/dashboard/bits";
 import { PageHeader } from "@/components/dashboard/shell";
 import { Avatar } from "@/components/ui/avatar";
@@ -15,13 +16,14 @@ import { cn, formatDate, formatINR, formatTime, relativeDay } from "@/lib/utils"
 
 type SortKey = "name" | "visits" | "spendINR" | "firstSeen";
 
-export default function CustomersPage() {
+function CustomersInner() {
+  const params = useSearchParams();
   const toast = useToast();
   const [list, setList] = useState<Customer[]>(getCustomers());
   const [q, setQ] = useState("");
   const [seg, setSeg] = useState<"all" | "Regular" | "New">("all");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "spendINR", dir: -1 });
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(params.get("open"));
 
   const rows = useMemo(() => {
     const f = list.filter(
@@ -141,6 +143,14 @@ export default function CustomersPage() {
         )}
       </Drawer>
     </>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <Suspense>
+      <CustomersInner />
+    </Suspense>
   );
 }
 
