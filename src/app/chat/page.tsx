@@ -5,7 +5,7 @@ import { MyBusinesses } from "@/components/chat/my-businesses";
 import { listDemoBrains } from "@/lib/server/store";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Chat demo — Reppy AI" };
+export const metadata = { title: "Chat demo", description: "Talk to Reppy as a customer of a sample salon or clinic, in English, Hindi or Hinglish." };
 
 export default async function ChatIndex() {
   const demos = await listDemoBrains();

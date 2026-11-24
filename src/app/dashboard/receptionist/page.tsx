@@ -137,7 +137,7 @@ export default function ReceptionistPage() {
                 </button>
               ))}
               {["Marathi", "Tamil", "Bengali"].map((l) => (
-                <span key={l} className="rounded-full px-4 py-2 text-[13.5px] text-fg-3/60 ring-1 ring-dashed ring-line">
+                <span key={l} className="rounded-full px-4 py-2 text-[13.5px] text-fg-3 ring-1 ring-dashed ring-line">
                   {l} · soon
                 </span>
               ))}

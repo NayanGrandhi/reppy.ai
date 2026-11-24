@@ -213,7 +213,7 @@ export function InteractiveDemo() {
           </div>
 
           <section>
-            <h4 className="mb-2 text-[12.5px] text-fg-3">Intent</h4>
+            <h3 className="mb-2 text-[12.5px] text-fg-3">Intent</h3>
             <AnimatePresence mode="wait">
               <motion.div key={intent ?? "none"} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 {intent ? (
@@ -228,9 +228,9 @@ export function InteractiveDemo() {
           </section>
 
           <section>
-            <h4 className="mb-2 text-[12.5px] text-fg-3">Details captured</h4>
-            <dl className="divide-y divide-line rounded-2xl ring-1 ring-line">
-              {Object.keys(fields).length === 0 && <div className="px-4 py-3 text-[13.5px] text-fg-3">Nothing yet</div>}
+            <h3 className="mb-2 text-[12.5px] text-fg-3">Details captured</h3>
+            {Object.keys(fields).length === 0 && <p className="rounded-2xl px-4 py-3 text-[13.5px] text-fg-3 ring-1 ring-line">Nothing yet</p>}
+            <dl className={cn("divide-y divide-line rounded-2xl ring-1 ring-line", Object.keys(fields).length === 0 && "hidden")}>
               {Object.entries(fields).map(([k, v]) => (
                 <motion.div key={k} layout initial={{ opacity: 0, backgroundColor: "rgba(139,123,255,0.15)" }} animate={{ opacity: 1, backgroundColor: "rgba(139,123,255,0)" }} transition={{ duration: 1 }} className="flex justify-between gap-4 px-4 py-2.5 text-[13.5px]">
                   <dt className="text-fg-3">{k}</dt>
@@ -272,7 +272,7 @@ export function InteractiveDemo() {
           <AnimatePresence>
             {phase === "done" && (
               <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-auto rounded-2xl bg-white/[0.03] p-4 ring-1 ring-line">
-                <h4 className="mb-1.5 text-[12.5px] text-fg-3">Summary sent to the owner</h4>
+                <h3 className="mb-1.5 text-[12.5px] text-fg-3">Summary sent to the owner</h3>
                 <p className="text-[14px] leading-relaxed text-fg-2">{scenario.summary}</p>
               </motion.section>
             )}

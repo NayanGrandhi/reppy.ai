@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { demoBrains } from "@/lib/brain/demo";
 import { BrainSchema, emptyBrain, slugify } from "@/lib/brain/schema";
 import { checkCompleteness, templates } from "@/lib/brain/templates";
-import { buildChatSystem } from "@/lib/server/ai";
+import { buildChatSystem, buildChatSystemParts } from "@/lib/server/ai";
 
 const salon = demoBrains[0].brain;
 const clinic = demoBrains[1].brain;
@@ -74,5 +74,18 @@ describe("chat safety rules in the system prompt", () => {
   });
   it("replies in the customer's language, including Hinglish", () => {
     expect(salonPrompt).toContain("Hinglish");
+  });
+});
+
+describe("prompt caching", () => {
+  it("keeps everything that changes (time, first reply) out of the cached part", () => {
+    const a = buildChatSystemParts(salon, true);
+    const b = buildChatSystemParts(salon, false);
+    expect(a.stable).toBe(b.stable); // same cache for every message to this business
+    expect(a.stable).not.toMatch(/Current date and time/);
+    expect(a.dynamic).toMatch(/Current date and time in India/);
+  });
+  it("gives each business its own cached part", () => {
+    expect(buildChatSystemParts(salon, true).stable).not.toBe(buildChatSystemParts(clinic, true).stable);
   });
 });

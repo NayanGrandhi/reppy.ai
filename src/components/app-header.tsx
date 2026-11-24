@@ -13,7 +13,7 @@ export function AppHeader({ active }: { active?: "setup" | "chat" }) {
     <header className="sticky top-0 z-40 border-b border-line bg-ink-950/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-5 md:px-8">
         <Logo />
-        <nav className="ml-auto flex items-center gap-4 text-[14px] sm:gap-5">
+        <nav aria-label="Main" className="ml-auto flex items-center gap-4 text-[14px] sm:gap-5">
           {link("/setup", "Set up a business", "Set up", active === "setup")}
           {link("/chat", "Chat demo", "Chat", active === "chat")}
           {link("/dashboard", "Dashboard", "Dashboard", false)}

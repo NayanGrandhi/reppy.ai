@@ -109,7 +109,7 @@ export default function AppointmentsPage() {
                   <div key={d} className="border-l border-line px-3 py-2.5">
                     <div className={cn("text-[12px]", isToday ? "text-violet-300" : "text-fg-3")}>{formatDate(d, { weekday: "short" })}</div>
                     <div className="flex items-center gap-2">
-                      <span className={cn("text-[18px] font-semibold tabular-nums", isToday && "grid size-8 place-items-center rounded-full bg-violet-500 text-white text-[15px]")}>
+                      <span className={cn("text-[18px] font-semibold tabular-nums", isToday && "grid size-8 place-items-center rounded-full bg-violet-600 text-white text-[15px]")}>
                         {formatDate(d, { day: "numeric" })}
                       </span>
                       {closed && <span className="text-[11.5px] text-fg-3">Closed</span>}
@@ -154,8 +154,8 @@ export default function AppointmentsPage() {
                             onClick={() => setOpen(a)}
                             className={cn(
                               "absolute inset-x-1 flex flex-col justify-start overflow-hidden rounded-lg border-l-[3px] px-2 py-1 text-left text-[12px] leading-tight transition-[filter] hover:brightness-125",
-                              a.status === "completed" && "opacity-55",
-                              a.status === "no-show" && "opacity-55 line-through",
+                              a.status === "completed" && "opacity-75",
+                              a.status === "no-show" && "opacity-75 line-through",
                             )}
                             style={{
                               top: (h - START_H) * ROW + 1,
@@ -356,7 +356,7 @@ function NewAppointment({
                   onClick={() => setSlot(t)}
                   className={cn(
                     "rounded-full px-3 py-1.5 text-[13px] tabular-nums ring-1 transition-colors",
-                    slot === t ? "bg-violet-500 text-white ring-violet-500" : "text-fg-2 ring-line hover:bg-white/5",
+                    slot === t ? "bg-violet-600 text-white ring-violet-500" : "text-fg-2 ring-line hover:bg-white/5",
                   )}
                 >
                   {formatTime(`${date}T${t}:00`)}

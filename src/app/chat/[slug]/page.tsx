@@ -12,7 +12,8 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ new?: 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const stored = await getBrain(slug);
-  return { title: stored ? `Chat with ${stored.brain.name} — Reppy AI` : "Chat — Reppy AI" };
+  // Private business links must never show up in search results.
+  return { title: stored ? `Chat with ${stored.brain.name}` : "Chat", robots: { index: false, follow: false } };
 }
 
 export default async function ChatPage({ params, searchParams }: Props) {

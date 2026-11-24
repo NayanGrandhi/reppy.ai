@@ -230,6 +230,7 @@ export function Heatmap({ rows, cols, data }: { rows: string[]; cols: string[]; 
                   onPointerLeave={() => setHover(null)}
                   className={cn("aspect-[1.4] rounded-[4px] transition-transform", hover?.[0] === r && hover?.[1] === c && "scale-110 ring-2 ring-fg/70")}
                   style={{ background: `color-mix(in oklab, #8b7bff ${Math.round(8 + t * 86)}%, #161429)` }}
+                  role="img"
                   aria-label={`${rows[r]} ${cols[c]}: ${v} conversations`}
                 />
               );

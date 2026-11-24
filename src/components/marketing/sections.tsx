@@ -88,14 +88,25 @@ function SetupVisual() {
             ["Hours", "Closed Tuesdays"],
             ["Staff", "Anita, Rahul, Meera"],
           ].map(([k, v], i) => (
-            <li key={k} className={cn("flex justify-between transition-opacity duration-500", step > i + 1 ? "opacity-100" : "opacity-20")}>
-              <span className="text-fg-3">{k}</span>
-              <span>{v}</span>
+            <li key={k} className="flex h-5 items-center justify-between">
+              {step > i + 1 ? (
+                <>
+                  <span className="text-fg-3">{k}</span>
+                  <span>{v}</span>
+                </>
+              ) : (
+                // Not read yet: a placeholder bar instead of faded text
+                <span aria-hidden className="h-2 w-full animate-pulse-soft rounded-full bg-white/[0.06]" />
+              )}
             </li>
           ))}
-          <li className={cn("flex justify-between text-saffron-400 transition-opacity duration-500", step > 4 ? "opacity-100" : "opacity-0")}>
-            <span>Missing</span>
-            <span>Parking info</span>
+          <li className="flex h-5 items-center justify-between text-saffron-400">
+            {step > 4 && (
+              <>
+                <span>Missing</span>
+                <span>Parking info</span>
+              </>
+            )}
           </li>
         </ul>
       </div>
@@ -478,7 +489,7 @@ export function Footer() {
     <footer className="border-t border-line">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-6 px-5 py-10 text-[13.5px] text-fg-3 md:px-8">
         <Logo />
-        <nav className="flex flex-wrap gap-6">
+        <nav aria-label="Footer" className="flex flex-wrap gap-6">
           <a href="#features" className="hover:text-fg">Features</a>
           <a href="#pricing" className="hover:text-fg">Pricing</a>
           <a href="/dashboard/settings" className="hover:text-fg">Privacy</a>

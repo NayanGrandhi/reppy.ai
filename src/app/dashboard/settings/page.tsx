@@ -30,7 +30,7 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Settings" description="Your business, who can give Reppy commands, and how much it can spend." />
       <div className="grid gap-8 lg:grid-cols-[200px_1fr]">
-        <nav className="hidden lg:block">
+        <nav aria-label="Settings sections" className="hidden lg:block">
           <ul className="sticky top-24 space-y-1 text-[14px]">
             {sections.map((s) => (
               <li key={s}>
@@ -133,7 +133,7 @@ export default function SettingsPage() {
               {report && (
                 <div className="flex items-center justify-between gap-4 py-3">
                   <span className="text-sm">Send at</span>
-                  <Input type="time" value={reportTime} onChange={(e) => setReportTime(e.target.value)} className="!w-32" />
+                  <Input type="time" aria-label="Daily report time" value={reportTime} onChange={(e) => setReportTime(e.target.value)} className="!w-32" />
                 </div>
               )}
             </div>

@@ -311,7 +311,7 @@ export function ChatWindow({ slug, brain, isNew }: { slug: string; brain: Brain;
       </div>
 
       {/* Desktop side panel */}
-      <aside className="hidden space-y-4 lg:block">
+      <aside aria-label="Chat details" className="hidden space-y-4 lg:block">
         {aiOff && <AiOffNote />}
         {pendingQ && <OwnerQuestion question={pendingQ} busy={busy} onAnswer={answerAsOwner} />}
         {last?.handoff && <HandoffAlert reason={last.handoffReason} />}

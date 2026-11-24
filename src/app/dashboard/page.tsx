@@ -179,7 +179,7 @@ export default function OverviewPage() {
                 <li key={a.id} className="relative flex items-start gap-4 rounded-xl py-2.5">
                   <span className={cn("w-11 shrink-0 pt-0.5 text-right text-[12.5px] tabular-nums", past ? "text-fg-3" : "text-fg-2")}>{formatTime(a.start)}</span>
                   <span className={cn("relative z-10 mt-1.5 size-2.5 shrink-0 rounded-full ring-4 ring-ink-850", past ? "bg-ink-600" : "bg-violet-400")} />
-                  <div className={cn("min-w-0 flex-1", past && "opacity-60")}>
+                  <div className="min-w-0 flex-1">
                     <div className="text-[14px] font-medium">{s.name}</div>
                     <div className="text-[13px] text-fg-3">
                       {c.name} with {staffById(a.staffId)?.name}, {s.durationMin} min

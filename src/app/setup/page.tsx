@@ -115,7 +115,7 @@ export default function SetupPage() {
             const done = step === "review" && i === 0;
             return (
               <li key={label} className={cn("flex items-center gap-2", current ? "text-fg" : done ? "text-fg-2" : "text-fg-3")}>
-                <span className={cn("grid size-6 place-items-center rounded-full text-[12px] ring-1", current ? "bg-violet-500 text-white ring-violet-500" : done ? "ring-teal-500/50 text-teal-400" : "ring-line")}>
+                <span className={cn("grid size-6 place-items-center rounded-full text-[12px] ring-1", current ? "bg-violet-600 text-white ring-violet-500" : done ? "ring-teal-500/50 text-teal-400" : "ring-line")}>
                   {i + 1}
                 </span>
                 <span className="hidden sm:inline">{label}</span>
@@ -137,7 +137,7 @@ export default function SetupPage() {
                   You have an unsaved review for <span className="font-medium">{draft.brain.name || "a business"}</span>.
                 </p>
                 <div className="flex gap-2">
-                  <button onClick={() => openReview(draft)} className="rounded-full bg-violet-500 px-4 py-1.5 text-[13px] font-medium text-white hover:bg-violet-400">
+                  <button onClick={() => openReview(draft)} className="rounded-full bg-violet-600 px-4 py-1.5 text-[13px] font-medium text-white hover:bg-violet-700">
                     Continue
                   </button>
                   <button

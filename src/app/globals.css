@@ -19,12 +19,12 @@
 
   --color-fg: #eeecf8;
   --color-fg-2: #b4b0cc;
-  --color-fg-3: #7f7a9c;
+  --color-fg-3: #9893b5; /* 4.8:1+ on every surface (WCAG AA) */
 
   --color-violet-300: #c4baff;
   --color-violet-400: #a597ff;
   --color-violet-500: #8b7bff;
-  --color-violet-600: #6f5cf0;
+  --color-violet-600: #6553e6; /* white text on it: 5.3:1 */
   --color-violet-700: #5442c9;
 
   --color-saffron-400: #f2ab6a;
@@ -43,9 +43,9 @@
   --color-series-3: #cc7d35;
   --color-series-4: #d2629e;
 
-  --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Instrument Serif", "Tiro Devanagari Hindi", Georgia, serif;
-  --font-deva: "Tiro Devanagari Hindi", "Instrument Serif", serif;
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-instrument), var(--font-tiro), Georgia, serif;
+  --font-deva: var(--font-tiro), var(--font-instrument), serif;
 
   --radius-xl: 14px;
   --radius-2xl: 20px;

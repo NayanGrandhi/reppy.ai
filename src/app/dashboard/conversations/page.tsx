@@ -210,7 +210,7 @@ function ConversationsInner() {
               </div>
             </div>
 
-            <aside className="w-full shrink-0 space-y-5 border-t border-line p-5 xl:w-72 xl:border-t-0 xl:border-l">
+            <aside aria-label="Conversation details" className="w-full shrink-0 space-y-5 border-t border-line p-5 xl:w-72 xl:border-t-0 xl:border-l">
               <div>
                 <div className="mb-2 flex items-center gap-1.5 text-[12.5px] text-fg-3">
                   <Sparkles className="size-3.5 text-violet-300" /> AI summary

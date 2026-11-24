@@ -28,7 +28,7 @@ export function Nav() {
     <header className={cn("fixed inset-x-0 top-0 z-50 transition-colors duration-300", scrolled && "bg-ink-950/70 backdrop-blur-xl")}>
       <div className="mx-auto flex h-18 max-w-7xl items-center gap-6 px-5 md:px-8" style={{ height: 72 }}>
         <Logo />
-        <nav className="mx-auto hidden items-center rounded-full border border-line bg-white/[0.03] p-1 backdrop-blur md:flex">
+        <nav aria-label="Main" className="mx-auto hidden items-center rounded-full border border-line bg-white/[0.03] p-1 backdrop-blur md:flex">
           {links.map((l) => (
             <a key={l.href} href={l.href} className="rounded-full px-4 py-1.5 text-[14px] text-fg-2 transition-colors hover:bg-white/[0.06] hover:text-fg">
               {l.label}
@@ -79,10 +79,11 @@ export function Hero() {
     return () => clearInterval(t);
   }, []);
 
+  // Starts visible (not from blank) so the headline counts as painted right away.
   const rise = (d: number) => ({
-    initial: { opacity: 0, y: 24, filter: "blur(6px)" },
-    animate: { opacity: 1, y: 0, filter: "blur(0px)" },
-    transition: { duration: 0.9, delay: d, ease: [0.2, 0.7, 0.2, 1] as const },
+    initial: { opacity: 0.2, y: 18 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.7, delay: d * 0.6, ease: [0.2, 0.7, 0.2, 1] as const },
   });
 
   return (

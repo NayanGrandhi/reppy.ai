@@ -40,7 +40,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const path = usePathname();
   const waiting = getKnowledgeGaps().filter((g) => g.status === "waiting").length;
   return (
-    <nav className="space-y-0.5">
+    <nav aria-label="Dashboard" className="space-y-0.5">
       {nav.map(({ href, label, icon: Icon }) => {
         const active = href === "/dashboard" ? path === "/dashboard" || path === "/dashboard/" : path.startsWith(href);
         return (
@@ -137,7 +137,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     <ToastProvider>
       <LiveCtx.Provider value={{ live, setLive }}>
         <div className="min-h-dvh lg:pl-64">
-          <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col justify-between border-r border-line bg-ink-900/60 p-4 lg:flex">
+          <aside aria-label="Sidebar" className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col justify-between border-r border-line bg-ink-900/60 p-4 lg:flex">
             <div>
               <Logo className="mb-8 px-2 pt-2" />
               <NavList />
@@ -148,7 +148,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {open && (
             <div className="fixed inset-0 z-50 lg:hidden">
               <div className="absolute inset-0 bg-ink-950/70" onClick={() => setOpen(false)} />
-              <aside className="absolute inset-y-0 left-0 flex w-72 flex-col justify-between border-r border-line bg-ink-900 p-4">
+              <aside aria-label="Menu" className="absolute inset-y-0 left-0 flex w-72 flex-col justify-between border-r border-line bg-ink-900 p-4">
                 <div>
                   <div className="mb-8 flex items-center justify-between px-2 pt-2">
                     <Logo />
