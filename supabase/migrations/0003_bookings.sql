@@ -2,7 +2,7 @@
 -- "no double booking". Two people booking the same staff member at the
 -- same time can't both succeed: an exclusion constraint rejects the second.
 
-create extension if not exists btree_gist;
+create extension if not exists btree_gist with schema extensions;
 
 create table if not exists public.customers (
   id          uuid primary key default gen_random_uuid(),
