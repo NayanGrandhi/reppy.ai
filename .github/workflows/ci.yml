@@ -1,0 +1,58 @@
+# Runs on every push: type check, unit tests and a production build.
+# The AI conversation tests run on pushes to main and on demand, only when
+# the ANTHROPIC_API_KEY repository secret exists (they cost a few rupees).
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+
+  ai-conversations:
+    needs: check
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: AI conversation tests
+        if: env.ANTHROPIC_API_KEY != ''
+        run: npm run test:ai
+      - name: Skipped (no API key secret)
+        if: env.ANTHROPIC_API_KEY == ''
+        run: echo "Add ANTHROPIC_API_KEY under Settings → Secrets → Actions to run the AI tests."
+      - uses: actions/upload-artifact@v4
+        if: always() && env.ANTHROPIC_API_KEY != ''
+        with:
+          name: ai-test-report
+          path: tests/ai/report.json
+          if-no-files-found: ignore
