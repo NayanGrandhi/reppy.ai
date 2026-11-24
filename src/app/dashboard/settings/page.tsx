@@ -1,6 +1,9 @@
 "use client";
 import { CheckCircle2, MessageCircle, Plus, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { TemplateList } from "@/components/dashboard/template-list";
+import { UpiRequestCard } from "@/components/upi-request";
+import { isValidUpiId } from "@/lib/upi";
 import { Panel, PageHeader } from "@/components/dashboard/shell";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +22,7 @@ export default function SettingsPage() {
   const [reportTime, setReportTime] = useState("21:30");
   const [cap, setCap] = useState("500");
   const [alertAt, setAlertAt] = useState(true);
+  const previewRequest = useMemo(() => ({ upiId: upi, payeeName: biz.name, amountINR: 200, note: "Deposit: test booking" }), [upi, biz.name]);
 
   const team = [
     { name: "Priya Sharma", role: "Owner", phone: "+91 98200 41177", verified: true },
@@ -111,8 +115,8 @@ export default function SettingsPage() {
                 Connect my number
               </Button>
             </div>
-            <div className="mt-5 rounded-xl bg-white/[0.02] p-4 text-[13px] text-fg-2 ring-1 ring-line">
-              Approved templates: booking confirmation, 24 h reminder, 2 h reminder, missed-call follow-up, daily owner report.
+            <div className="mt-6">
+              <TemplateList />
             </div>
           </Panel>
 
@@ -121,9 +125,14 @@ export default function SettingsPage() {
               <Field label="Your UPI ID" hint="Reppy sends customers a UPI link or QR for deposits. Money goes straight to you — no gateway, no fees from us.">
                 <Input value={upi} onChange={(e) => setUpi(e.target.value)} />
               </Field>
-              <Button variant="secondary" className="mb-[26px]" onClick={() => toast(`UPI ID saved: ${upi}`)}>
+              <Button variant="secondary" className="mb-[26px]" disabled={!isValidUpiId(upi)} onClick={() => toast(`UPI ID saved: ${upi}`)}>
                 Save UPI ID
               </Button>
+            </div>
+            {!isValidUpiId(upi) && <p className="-mt-3 mb-3 text-[13px] text-bad">A UPI ID looks like name@bank, for example glowstudio@okhdfcbank.</p>}
+            <div className="mt-2">
+              <div className="mb-2 text-[13px] text-fg-3">Preview: what customers get for a ₹200 deposit</div>
+              {isValidUpiId(upi) && <UpiRequestCard request={previewRequest} />}
             </div>
           </Panel>
 

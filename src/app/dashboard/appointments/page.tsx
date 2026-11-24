@@ -2,6 +2,7 @@
 import { ChevronLeft, ChevronRight, IndianRupee, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { apptMeta } from "@/components/dashboard/bits";
+import { UpiRequestCard } from "@/components/upi-request";
 import { PageHeader } from "@/components/dashboard/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -204,6 +205,10 @@ function AppointmentDetail({ a, onStatus }: { a: Appointment; onStatus: (id: str
   const c = customerById(a.customerId)!;
   const toast = useToast();
   const biz = getBusiness();
+  const depositRequest = useMemo(
+    () => ({ upiId: biz.upiId, payeeName: biz.name, amountINR: a.depositINR ?? 0, note: `Deposit: ${s.name}, ${formatDay(a.start)}`, ref: a.id }),
+    [biz, a, s],
+  );
   return (
     <div className="space-y-6">
       <div>
@@ -232,6 +237,9 @@ function AppointmentDetail({ a, onStatus }: { a: Appointment; onStatus: (id: str
       </dl>
       {c.notes && <p className="rounded-xl bg-white/[0.03] p-3 text-[13px] text-fg-2 ring-1 ring-line">Note: {c.notes}</p>}
       <div className="grid gap-2">
+        {a.status === "awaiting-deposit" && a.depositINR && (
+          <UpiRequestCard request={depositRequest} />
+        )}
         {a.status === "awaiting-deposit" && (
           <>
             <Button onClick={() => onStatus(a.id, "confirmed", "Deposit marked as received. Booking confirmed.")}>I received the {formatINR(a.depositINR ?? 0)} deposit</Button>

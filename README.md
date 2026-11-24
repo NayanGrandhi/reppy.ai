@@ -45,6 +45,16 @@ line added by the server (`aiIntro()` in `src/lib/server/ai.ts`).
 **Costs:** setup uses Claude Sonnet 5.5, chat uses Claude Haiku 5.5. Set a monthly spend limit in the Claude Console.
 Built-in caps: 200 AI replies per business per day, 30 setups per day, 800-character messages, 4 MB uploads.
 
+## Tests
+
+```bash
+npm test            # 89 quick checks, no keys needed (also run by GitHub on every push)
+npm run test:ai     # 35 real conversations graded against the safety rules (needs ANTHROPIC_API_KEY, costs a few rupees)
+npm run test:ai -- trick   # just one category: salon, clinic, generic, hinglish, hindi, trick, safety, gaps
+```
+
+Add a conversation test in `tests/ai/scenarios.ts`. Re-run `npm run test:ai` before every release.
+
 ## How the code is organised
 
 ```
@@ -62,12 +72,16 @@ src/
     ui/                   buttons, inputs, toggles, modal, drawer, toasts
   lib/
     brain/                business brain schema, industry templates, sample salon + clinic
-    server/               Claude API calls, database store, website reader, cost limits
+    server/               Claude API calls, database store, bookings, website reader, cost limits
+    upi.ts                UPI payment links and QR codes (deposits, no gateway)
+    whatsapp/templates.ts WhatsApp message templates, checked against Meta's rules
     types.ts              shape of every record (Business, Customer, Appointment…)
     services.ts           the ONLY place pages get data from
     mock/data.ts          sample data for "Glow Studio", a Mumbai salon
     demo-scripts.ts       the scripted conversations used by the landing demo
-supabase/migrations/      database tables + row-level security
+supabase/migrations/      database tables + row-level security (0003 = bookings with a no-double-booking guard)
+tests/unit/               quick checks (Vitest)
+tests/ai/                 AI conversation tests and runner
 scripts/seed.ts           loads the sample businesses into Supabase
 ```
 

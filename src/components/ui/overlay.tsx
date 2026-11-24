@@ -73,7 +73,7 @@ export function Drawer({
       {open && (
         <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <div className="absolute inset-0 bg-ink-950/60 backdrop-blur-[2px]" onClick={onClose} />
-          <motion.aside
+          <motion.div
             role="dialog"
             aria-modal
             aria-label={title}
@@ -90,7 +90,7 @@ export function Drawer({
               </button>
             </div>
             {children}
-          </motion.aside>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
