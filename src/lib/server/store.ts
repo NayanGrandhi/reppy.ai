@@ -6,13 +6,13 @@ import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { demoBrains } from "@/lib/brain/demo";
 import { type Brain, type StoredBrain, slugify } from "@/lib/brain/schema";
+import { SUPABASE_URL } from "@/lib/supabase/config";
 
 let client: SupabaseClient | null = null;
 export function db(): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  client ??= createClient(url, key, { auth: { persistSession: false } });
+  if (!key) return null;
+  client ??= createClient(SUPABASE_URL, key, { auth: { persistSession: false } });
   return client;
 }
 
