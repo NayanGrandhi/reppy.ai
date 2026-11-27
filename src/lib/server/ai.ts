@@ -7,6 +7,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { type Brain, ExtractionSchema, type Extraction } from "@/lib/brain/schema";
 import { templates } from "@/lib/brain/templates";
+import { geminiConfigured, geminiStreamJson } from "./gemini";
 
 export const MODELS = {
   extract: process.env.REPPY_EXTRACT_MODEL || "claude-sonnet-5-5",
@@ -26,6 +27,20 @@ function ai() {
   return anthropic;
 }
 export const aiConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY);
+
+export type ChatProvider = "claude" | "gemini";
+/**
+ * Which AI answers this business's chat.
+ * - Claude whenever its key is set.
+ * - Otherwise Google's free Gemini tier, but ONLY for the made-up sample
+ *   businesses (Google may read free-tier data). Real businesses get null,
+ *   which means "AI not switched on".
+ */
+export function chatProvider(isDemo: boolean): ChatProvider | null {
+  if (aiConfigured()) return "claude";
+  if (isDemo && geminiConfigured()) return "gemini";
+  return null;
+}
 
 // ───────────────────────── setup extraction ─────────────────────────
 
@@ -245,8 +260,25 @@ export async function chatTurnStream(
   message: string,
   ownerNote: string | undefined,
   onReply: (soFar: string) => void,
+  provider: ChatProvider = "claude",
 ): Promise<ChatTurn> {
   const isFirstReply = !history.some((h) => h.role === "reppy");
+  if (provider === "gemini") {
+    const { stable, dynamic } = buildChatSystemParts(brain, isFirstReply);
+    let sent = "";
+    return geminiStreamJson({
+      system: `${stable}\n\n${dynamic}`,
+      messages: buildMessages(history, message, ownerNote).map((m) => ({ role: m.role === "user" ? "user" : "model", text: m.content as string })),
+      schema: ChatTurnSchema,
+      onText: (snapshot) => {
+        const soFar = partialReply(snapshot);
+        if (soFar.length > sent.length) {
+          sent = soFar;
+          onReply(soFar);
+        }
+      },
+    });
+  }
   const stream = ai().messages.stream({
     model: MODELS.chat,
     max_tokens: 800,

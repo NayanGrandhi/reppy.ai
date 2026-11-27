@@ -21,7 +21,7 @@ const suggestions: Record<string, string[]> = {
 const time = (t: number) => new Date(t).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
 let nextId = 1;
 
-export function ChatWindow({ slug, brain, isNew }: { slug: string; brain: Brain; isNew: boolean }) {
+export function ChatWindow({ slug, brain, isNew, isDemo = false }: { slug: string; brain: Brain; isNew: boolean; isDemo?: boolean }) {
   const status = useStatus();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -34,7 +34,9 @@ export function ChatWindow({ slug, brain, isNew }: { slug: string; brain: Brain;
   const [atBottom, setAtBottom] = useState(true);
   const scroller = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
-  const aiOff = status?.ai === false;
+  // Free Gemini stand-in answers sample businesses only, until a Claude key is added.
+  const demoAi = !!status?.demoAi && isDemo;
+  const aiOff = status ? !status.ai && !demoAi : false;
 
   const scrollDown = useCallback((smooth = true) => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: smooth ? "smooth" : "auto" });
@@ -304,7 +306,9 @@ export function ChatWindow({ slug, brain, isNew }: { slug: string; brain: Brain;
           </Button>
         </form>
         <p className="bg-[#0f1a17] px-4 pb-2.5 text-center text-[11px] leading-snug text-fg-3">
-          {brain.type === "Clinic"
+          {demoAi
+            ? "Free demo AI (Google Gemini). Google may read these chats, so use made-up details only."
+            : brain.type === "Clinic"
             ? "Demo chat with an AI. Clinic chats aren't stored word for word. Don't share health details; for emergencies call 112."
             : "Demo chat with an AI. Chats are deleted after 30 days. Don't share personal or payment details."}
         </p>

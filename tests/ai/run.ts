@@ -1,13 +1,14 @@
 // Runs the Phase 2 AI conversation tests against the real Claude API.
 //   npm run test:ai                 all scenarios
 //   npm run test:ai -- trick        only one category (or a scenario id)
-// Needs ANTHROPIC_API_KEY (in .env.local or the environment). Uses the sample
+// Needs ANTHROPIC_API_KEY, or GEMINI_API_KEY for the free stand-in (in .env.local or the environment). Uses the sample
 // businesses from code, not the database. Costs roughly ₹2–4 per full run.
 import fs from "node:fs";
 import path from "node:path";
 import { demoBrains } from "@/lib/brain/demo";
 import type { Brain } from "@/lib/brain/schema";
-import { aiConfigured, aiIntro, type ChatHistoryItem, chatTurnStream, MODELS } from "@/lib/server/ai";
+import { aiIntro, type ChatHistoryItem, chatProvider, chatTurnStream, MODELS } from "@/lib/server/ai";
+import { GEMINI_MODEL } from "@/lib/server/gemini";
 import { type Scenario, scenarios } from "./scenarios";
 
 const garage: Brain = {
@@ -40,6 +41,10 @@ const brains: Record<Scenario["business"], Brain> = {
 
 type Result = { scenario: Scenario; reply: string; passed: string[]; failed: string[]; error?: string; ms: number };
 
+// Test businesses are all made up, so the free stand-in is allowed here.
+const provider = chatProvider(true);
+const modelName = provider === "gemini" ? GEMINI_MODEL : MODELS.chat;
+
 async function runOne(s: Scenario): Promise<Result> {
   const brain = brains[s.business];
   const history: ChatHistoryItem[] = [];
@@ -49,7 +54,16 @@ async function runOne(s: Scenario): Promise<Result> {
     let last;
     for (const msg of s.messages) {
       const first = !history.some((h) => h.role === "reppy");
-      last = await chatTurnStream(brain, history, msg, undefined, () => {});
+      for (let attempt = 0; ; attempt++) {
+        try {
+          last = await chatTurnStream(brain, history, msg, undefined, () => {}, provider!);
+          break;
+        } catch (e) {
+          const busy = e instanceof Error && /busy|429/.test(e.message);
+          if (!busy || attempt >= 3) throw e;
+          await new Promise((r) => setTimeout(r, 30_000)); // free-tier limit: wait and retry
+        }
+      }
       reply = (first ? `${aiIntro(brain, msg)} ` : "") + last.reply.trim();
       history.push({ role: "customer", text: msg }, { role: "reppy", text: reply });
     }
@@ -65,17 +79,18 @@ async function runOne(s: Scenario): Promise<Result> {
 }
 
 async function main() {
-  if (!aiConfigured()) {
-    console.error("ANTHROPIC_API_KEY is not set. Add it to .env.local, then run: npm run test:ai");
+  if (!provider) {
+    console.error("No AI key set. Add ANTHROPIC_API_KEY (or GEMINI_API_KEY for the free stand-in) to .env.local, then run: npm run test:ai");
     process.exit(2);
   }
   const filter = process.argv[2];
   const list = filter ? scenarios.filter((s) => s.category === filter || s.id === filter) : scenarios;
-  console.log(`Running ${list.length} conversations on ${MODELS.chat}…\n`);
+  console.log(`Running ${list.length} conversations on ${modelName}…\n`);
 
   const results: Result[] = [];
   const queue = [...list];
-  const workers = Array.from({ length: 3 }, async () => {
+  // Google's free tier allows only a few requests a minute, so go one at a time there.
+  const workers = Array.from({ length: provider === "gemini" ? 1 : 3 }, async () => {
     for (let s = queue.shift(); s; s = queue.shift()) {
       const r = await runOne(s);
       results.push(r);
@@ -106,7 +121,7 @@ async function main() {
   fs.writeFileSync(
     out,
     JSON.stringify(
-      { model: MODELS.chat, ranAt: new Date().toISOString(), passed: results.length - failed.length, total: results.length, results: results.map((r) => ({ id: r.scenario.id, category: r.scenario.category, ok: !r.error && !r.failed.length, failed: r.failed, error: r.error, reply: r.reply })) },
+      { model: modelName, ranAt: new Date().toISOString(), passed: results.length - failed.length, total: results.length, results: results.map((r) => ({ id: r.scenario.id, category: r.scenario.category, ok: !r.error && !r.failed.length, failed: r.failed, error: r.error, reply: r.reply })) },
       null,
       2,
     ),

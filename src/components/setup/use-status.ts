@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export type Status = { ai: boolean; storage: "database" | "memory"; setupCodeRequired: boolean };
+export type Status = { ai: boolean; demoAi?: boolean; storage: "database" | "memory"; setupCodeRequired: boolean };
 
 /** Which parts of the backend are switched on (AI key, database). */
 export function useStatus() {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AiNotConfigured, aiConfigured, aiIntro, chatTurnStream } from "@/lib/server/ai";
+import { AiNotConfigured, aiIntro, chatProvider, chatTurnStream } from "@/lib/server/ai";
 import { LIMITS, clientIp, rateLimited } from "@/lib/server/limits";
 import { bumpUsage, getBrain, logExchange, recordGap } from "@/lib/server/store";
 
@@ -30,12 +30,14 @@ export async function POST(req: Request) {
   const { slug, message, history, sessionFaqs, ownerAnswer } = parsed.data;
   const text = message.trim();
   if (!text && !ownerAnswer) return fail(400, "Type a message first.");
-  if (!aiConfigured()) return fail(503, new AiNotConfigured().message);
-
   if (rateLimited(`chat:${clientIp(req)}`, 20, 60_000)) return fail(429, "You're sending messages very fast. Wait a moment.");
 
   const stored = await getBrain(slug);
   if (!stored) return fail(404, "This business doesn't exist.");
+  // Claude for everyone once its key is set; until then the free Gemini
+  // stand-in answers the sample businesses only (never real customers).
+  const provider = chatProvider(stored.isDemo);
+  if (!provider) return fail(503, new AiNotConfigured().message);
 
   const used = await bumpUsage(slug, "message");
   if (used > LIMITS.messagesPerBusinessPerDay) {
@@ -53,7 +55,7 @@ export async function POST(req: Request) {
       const send = (obj: unknown) => controller.enqueue(enc.encode(`${JSON.stringify(obj)}\n`));
       try {
         if (intro) send({ type: "delta", text: intro });
-        const turn = await chatTurnStream(brain, history, text, ownerAnswer, (soFar) => send({ type: "delta", text: intro + soFar }));
+        const turn = await chatTurnStream(brain, history, text, ownerAnswer, (soFar) => send({ type: "delta", text: intro + soFar }), provider);
         const reply = intro + turn.reply.trim();
 
         if (turn.needsOwner && turn.ownerQuestion && !stored.isDemo) await recordGap(slug, turn.ownerQuestion).catch(() => {});
@@ -68,10 +70,11 @@ export async function POST(req: Request) {
           { redact },
         ).catch(() => parsed.data.sessionId ?? null);
 
-        send({ type: "done", ...turn, reply, sessionId });
+        send({ type: "done", ...turn, reply, sessionId, provider });
       } catch (e) {
         console.error("chat failed", e);
-        send({ type: "error", error: e instanceof AiNotConfigured ? e.message : "Reppy couldn't reply just now. Try sending that again." });
+        const busy = e instanceof Error && e.message.startsWith("The free demo AI is busy");
+        send({ type: "error", error: e instanceof AiNotConfigured || busy ? (e as Error).message : "Reppy couldn't reply just now. Try sending that again." });
       } finally {
         controller.close();
       }

@@ -37,7 +37,7 @@ export default async function ChatPage({ params, searchParams }: Props) {
             {stored.isDemo ? "Sample business" : "Your business"}
           </span>
         </div>
-        <ChatWindow slug={stored.slug} brain={stored.brain} isNew={isNew === "1"} />
+        <ChatWindow slug={stored.slug} brain={stored.brain} isNew={isNew === "1"} isDemo={stored.isDemo} />
       </main>
     </>
   );
