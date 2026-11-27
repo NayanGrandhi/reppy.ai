@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Segmented, Select } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
-import { DEMO_TODAY, customerById, getConversations } from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 import type { Conversation, ConversationStatus } from "@/lib/types";
 import { cn, formatDate, formatDuration, formatTime, relativeDay } from "@/lib/utils";
 
 function ConversationsInner() {
+  const { DEMO_TODAY, customerById, getConversations, live } = useData();
   const params = useSearchParams();
   const toast = useToast();
   const [items, setItems] = useState<Conversation[]>(getConversations());
@@ -64,7 +65,10 @@ function ConversationsInner() {
 
   return (
     <>
-      <PageHeader title="Conversations" description="Every WhatsApp chat and phone call Reppy handled, with transcripts and AI summaries." />
+      <PageHeader
+        title="Conversations"
+        description={live ? "Chats Reppy handled for your business in the last 30 days." : "Every WhatsApp chat and phone call Reppy handled, with transcripts and AI summaries."}
+      />
       <div className="panel grid min-h-[640px] overflow-hidden lg:grid-cols-[380px_1fr]">
         {/* List */}
         <div className={cn("flex flex-col border-line lg:border-r", mobileDetail && "hidden lg:flex")}>
@@ -186,7 +190,9 @@ function ConversationsInner() {
               </div>
 
               <div className="border-t border-line p-3">
-                {current.channel === "whatsapp" ? (
+                {live ? (
+                  <p className="px-2 py-1.5 text-[13px] text-fg-3">These are website chats. Replying yourself works once WhatsApp is connected.</p>
+                ) : current.channel === "whatsapp" ? (
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();

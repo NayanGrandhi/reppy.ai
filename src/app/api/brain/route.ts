@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { BrainSchema } from "@/lib/brain/schema";
 import { clientIp, rateLimited, setupCodeOk } from "@/lib/server/limits";
+import { ownedBusinessId } from "@/lib/server/dashboard";
 import { createBrain } from "@/lib/server/store";
+import { supabaseAsUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +22,13 @@ export async function POST(req: Request) {
   const { brain } = parsed.data;
   if (!brain.name.trim()) return Response.json({ error: "Add the business name before saving." }, { status: 400 });
   try {
-    const slug = await createBrain(brain, parsed.data.sources);
-    return Response.json({ slug });
+    // Signed-in owner without a business yet: this becomes their business,
+    // so it shows up in their dashboard.
+    const supa = await supabaseAsUser();
+    const { data } = await supa.auth.getUser();
+    const ownerId = data.user && !(await ownedBusinessId(supa)) ? data.user.id : undefined;
+    const slug = await createBrain(brain, parsed.data.sources, ownerId);
+    return Response.json({ slug, owned: Boolean(ownerId) });
   } catch (e) {
     console.error("save failed", e);
     return Response.json({ error: "Couldn't save right now. Try again." }, { status: 500 });

@@ -1,6 +1,7 @@
 "use client";
 import { ChevronLeft, ChevronRight, IndianRupee, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { bookAppointment, setAppointmentStatus } from "@/app/dashboard/actions";
 import { apptMeta } from "@/components/dashboard/bits";
 import { UpiRequestCard } from "@/components/upi-request";
 import { PageHeader } from "@/components/dashboard/shell";
@@ -9,18 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Segmented, Select } from "@/components/ui/controls";
 import { Drawer, Modal } from "@/components/ui/overlay";
 import { useToast } from "@/components/ui/toast";
-import {
-  DEMO_TODAY,
-  customerById,
-  freeSlots,
-  getAppointments,
-  getBusiness,
-  getCustomers,
-  getServices,
-  getStaff,
-  serviceById,
-  staffById,
-} from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 import type { Appointment, AppointmentStatus } from "@/lib/types";
 import { addDays, cn, formatDate, formatDay, formatINR, formatTime } from "@/lib/utils";
 
@@ -28,12 +18,8 @@ const START_H = 9;
 const END_H = 21;
 const ROW = 56; // px per hour
 
-// Staff identity colours (validated series palette)
-const staffColor: Record<string, string> = {
-  st_anita: "var(--color-series-1)",
-  st_rahul: "var(--color-series-2)",
-  st_meera: "var(--color-series-3)",
-};
+// Staff identity colours (validated series palette), by position in the team list.
+const seriesFor = (i: number) => `var(--color-series-${(i % 6) + 1})`;
 
 function mondayOf(date: string) {
   const d = new Date(`${date}T12:00:00`);
@@ -41,10 +27,15 @@ function mondayOf(date: string) {
 }
 
 export default function AppointmentsPage() {
+  const { DEMO_TODAY, customerById, getAppointments, getBusiness, getStaff, serviceById, live } = useData();
   const biz = getBusiness();
   const staff = getStaff();
+  const staffColor = Object.fromEntries(staff.map((s, i) => [s.id, seriesFor(i)]));
   const toast = useToast();
-  const [appts, setAppts] = useState<Appointment[]>(getAppointments());
+  const serverAppts = getAppointments();
+  const [appts, setAppts] = useState<Appointment[]>(serverAppts);
+  // After a save, the server sends fresh data; show it.
+  useEffect(() => setAppts(serverAppts), [serverAppts]);
   const [weekStart, setWeekStart] = useState(mondayOf(DEMO_TODAY));
   const [who, setWho] = useState<string>("all");
   const [open, setOpen] = useState<Appointment | null>(null);
@@ -55,9 +46,29 @@ export default function AppointmentsPage() {
 
   const setStatus = (id: string, status: AppointmentStatus, msg: string) => {
     const prev = appts.find((a) => a.id === id)!;
-    setAppts((all) => all.map((a) => (a.id === id ? { ...a, status, depositPaid: status === "confirmed" ? true : a.depositPaid } : a)));
+    const apply = (a: Appointment) => (a.id === id ? { ...a, status, depositPaid: status === "confirmed" ? true : a.depositPaid } : a);
+    setAppts((all) => all.map(apply));
     setOpen(null);
-    toast(msg, { label: "Undo", run: () => setAppts((all) => all.map((a) => (a.id === id ? prev : a))) });
+    if (!live) {
+      toast(msg, { label: "Undo", run: () => setAppts((all) => all.map((a) => (a.id === id ? prev : a))) });
+      return;
+    }
+    // Real business: save it. Undo puts the old status back in the database too.
+    setAppointmentStatus(id, status).then((r) => {
+      if (!r.ok) {
+        setAppts((all) => all.map((a) => (a.id === id ? prev : a)));
+        toast(r.error);
+        return;
+      }
+      toast(msg, {
+        label: "Undo",
+        run: () =>
+          setAppointmentStatus(id, prev.status).then((u) => {
+            if (u.ok) setAppts((all) => all.map((a) => (a.id === id ? prev : a)));
+            else toast(u.error);
+          }),
+      });
+    });
   };
 
   return (
@@ -193,7 +204,7 @@ export default function AppointmentsPage() {
           setAppts((all) => [...all, a]);
           setWeekStart(mondayOf(a.start.slice(0, 10)));
           setCreating(false);
-          toast(`Booked. Confirmation sent to ${customerById(a.customerId)?.name} on WhatsApp.`);
+          toast(live ? "Booked. WhatsApp confirmations start once WhatsApp is connected." : `Booked. Confirmation sent to ${customerById(a.customerId)?.name} on WhatsApp.`);
         }}
       />
     </>
@@ -201,6 +212,7 @@ export default function AppointmentsPage() {
 }
 
 function AppointmentDetail({ a, onStatus }: { a: Appointment; onStatus: (id: string, s: AppointmentStatus, msg: string) => void }) {
+  const { customerById, getBusiness, serviceById, staffById, live } = useData();
   const s = serviceById(a.serviceId)!;
   const c = customerById(a.customerId)!;
   const toast = useToast();
@@ -227,7 +239,7 @@ function AppointmentDetail({ a, onStatus }: { a: Appointment; onStatus: (id: str
           ["Price", formatINR(s.priceINR)],
           ["Booked via", a.source === "whatsapp" ? "WhatsApp (Reppy)" : a.source === "call" ? "Phone call (Reppy)" : "Dashboard"],
           ...(a.depositINR ? [["Deposit", `${formatINR(a.depositINR)} · ${a.depositPaid ? "paid" : "not received yet"}`]] : []),
-          ["Reminders", "24 h and 2 h before, on WhatsApp"],
+          ["Reminders", live ? "On WhatsApp, once it's connected" : "24 h and 2 h before, on WhatsApp"],
         ].map(([k, v]) => (
           <div key={k} className="flex justify-between gap-4 px-4 py-3 text-[14px]">
             <dt className="text-fg-3">{k}</dt>
@@ -243,7 +255,7 @@ function AppointmentDetail({ a, onStatus }: { a: Appointment; onStatus: (id: str
         {a.status === "awaiting-deposit" && (
           <>
             <Button onClick={() => onStatus(a.id, "confirmed", "Deposit marked as received. Booking confirmed.")}>I received the {formatINR(a.depositINR ?? 0)} deposit</Button>
-            <Button variant="secondary" onClick={() => toast(`UPI link for ${formatINR(a.depositINR ?? 0)} to ${biz.upiId} re-sent`)}>
+            <Button variant="secondary" onClick={() => toast(live ? "Sending on WhatsApp starts once it's connected. Share the QR above for now." : `UPI link for ${formatINR(a.depositINR ?? 0)} to ${biz.upiId} re-sent`)}>
               Re-send UPI link
             </Button>
           </>
@@ -253,7 +265,7 @@ function AppointmentDetail({ a, onStatus }: { a: Appointment; onStatus: (id: str
             <Button variant="secondary" onClick={() => onStatus(a.id, "completed", "Marked as completed")}>
               Mark as completed
             </Button>
-            <Button variant="ghost" onClick={() => onStatus(a.id, "cancelled", `Cancelled. ${c.name.split(" ")[0]} has been told on WhatsApp.`)}>
+            <Button variant="ghost" onClick={() => onStatus(a.id, "cancelled", live ? "Appointment cancelled" : `Cancelled. ${c.name.split(" ")[0]} has been told on WhatsApp.`)}>
               Cancel appointment
             </Button>
           </>
@@ -262,6 +274,8 @@ function AppointmentDetail({ a, onStatus }: { a: Appointment; onStatus: (id: str
     </div>
   );
 }
+
+const NEW = "__new";
 
 function NewAppointment({
   open,
@@ -274,17 +288,62 @@ function NewAppointment({
   existing: Appointment[];
   onCreate: (a: Appointment) => void;
 }) {
+  const { DEMO_TODAY, freeSlots, getCustomers, getServices, serviceById, staffById, live, getBusiness } = useData();
   const services = getServices();
-  const customers = getCustomers();
-  const [customerId, setCustomerId] = useState(customers[0].id);
-  const [serviceId, setServiceId] = useState(services[0].id);
-  const service = serviceById(serviceId)!;
-  const [staffId, setStaffId] = useState(service.staffIds[0]);
+  const [extraCustomers, setExtraCustomers] = useState<{ id: string; name: string; phone: string }[]>([]);
+  const customers = [...extraCustomers, ...getCustomers()];
+  const [customerId, setCustomerId] = useState(customers[0]?.id ?? NEW);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
+  const service = serviceById(serviceId);
+  const [staffId, setStaffId] = useState(service?.staffIds[0] ?? "");
   const [date, setDate] = useState(addDays(DEMO_TODAY, 1));
   const [slot, setSlot] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
-  const validStaff = service.staffIds.includes(staffId) ? staffId : service.staffIds[0];
-  const slots = useMemo(() => freeSlots(date, service, validStaff, existing), [date, service, validStaff, existing]);
+  const validStaff = service && service.staffIds.includes(staffId) ? staffId : (service?.staffIds[0] ?? "");
+  const slots = useMemo(() => (service && validStaff ? freeSlots(date, service, validStaff, existing) : []), [date, service, validStaff, existing, freeSlots]);
+
+  if (!service) {
+    return (
+      <Modal open={open} onClose={onClose} title="New appointment">
+        <p className="text-[14px] text-fg-2">Add a service with a duration in the Knowledge Base first.</p>
+      </Modal>
+    );
+  }
+
+  const submit = () => {
+    if (!slot) return;
+    setError(null);
+    if (!live) {
+      onCreate({ id: `ap_${Date.now()}`, businessId: getBusiness().id, customerId, serviceId, staffId: validStaff, start: `${date}T${slot}:00`, status: "confirmed", source: "dashboard" });
+      setSlot(null);
+      return;
+    }
+    startTransition(async () => {
+      const r = await bookAppointment({
+        ...(customerId === NEW ? { newCustomer: { name: newName, phone: newPhone } } : { customerId }),
+        serviceId,
+        staffId: validStaff,
+        date,
+        time: slot,
+      });
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      if (r.customer) {
+        setExtraCustomers((c) => [r.customer!, ...c]);
+        setCustomerId(r.customer.id);
+        setNewName("");
+        setNewPhone("");
+      }
+      onCreate(r.appointment);
+      setSlot(null);
+    });
+  };
 
   return (
     <Modal open={open} onClose={onClose} title="New appointment">
@@ -292,13 +351,12 @@ function NewAppointment({
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!slot) return;
-          onCreate({ id: `ap_${Date.now()}`, businessId: "biz_glow", customerId, serviceId, staffId: validStaff, start: `${date}T${slot}:00`, status: "confirmed", source: "dashboard" });
-          setSlot(null);
+          submit();
         }}
       >
         <Field label="Customer">
           <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+            {live && <option value={NEW}>+ New customer</option>}
             {customers.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} · {c.phone}
@@ -306,6 +364,16 @@ function NewAppointment({
             ))}
           </Select>
         </Field>
+        {customerId === NEW && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Name">
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} required maxLength={80} />
+            </Field>
+            <Field label="Mobile">
+              <Input type="tel" inputMode="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="98200 12345" required />
+            </Field>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Service">
             <Select
@@ -353,7 +421,7 @@ function NewAppointment({
           <div className="mb-2 text-[13px] font-medium text-fg-2">Free slots ({service.durationMin} min)</div>
           {slots.length === 0 ? (
             <p className="rounded-xl bg-white/[0.03] p-3 text-[13px] text-fg-3 ring-1 ring-line">
-              No free slots — the salon is closed, {staffById(validStaff)?.name} is off, or the day is full. Try another date.
+              No free slots — closed that day, {staffById(validStaff)?.name ?? "this person"} is off, or the day is full. Try another date.
             </p>
           ) : (
             <div className="scroll-thin flex max-h-36 flex-wrap gap-2 overflow-y-auto">
@@ -373,12 +441,17 @@ function NewAppointment({
             </div>
           )}
         </div>
+        {error && (
+          <p role="alert" className="text-[13.5px] text-bad">
+            {error}
+          </p>
+        )}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!slot}>
-            Book and send confirmation
+          <Button type="submit" disabled={!slot || pending}>
+            {pending ? "Booking…" : live ? "Book appointment" : "Book and send confirmation"}
           </Button>
         </div>
       </form>

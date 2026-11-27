@@ -278,7 +278,7 @@ export function Donut({
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90" role="img" aria-label="Breakdown">
           {segments.map((s, i) => {
-            const len = (s.value / total) * c;
+            const len = total ? (s.value / total) * c : 0;
             const el = (
               <circle
                 key={s.label}
@@ -310,7 +310,7 @@ export function Donut({
             <span className="size-2.5 rounded-full" style={{ background: s.color }} />
             <span className="w-24 text-fg-2">{s.label}</span>
             <span className="tabular-nums text-fg">{s.value}</span>
-            <span className="tabular-nums text-fg-3">{Math.round((s.value / total) * 100)}%</span>
+            <span className="tabular-nums text-fg-3">{total ? Math.round((s.value / total) * 100) : 0}%</span>
           </li>
         ))}
       </ul>

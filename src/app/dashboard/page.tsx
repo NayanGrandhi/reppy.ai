@@ -9,20 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
-import {
-  DEMO_TODAY,
-  customerById,
-  getAppointments,
-  getBusiness,
-  getConversations,
-  getDailyVolume,
-  getKnowledgeGaps,
-  serviceById,
-  staffById,
-} from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 import { cn, formatDate, formatINR, formatTime } from "@/lib/utils";
 
 export default function OverviewPage() {
+  const { DEMO_TODAY, customerById, getAppointments, getBusiness, getConversations, getDailyVolume, getKnowledgeGaps, serviceById, staffById, live: realData, data } = useData();
   const biz = getBusiness();
   const volume = getDailyVolume();
   const convos = getConversations();
@@ -33,7 +24,7 @@ export default function OverviewPage() {
 
   const today = volume[volume.length - 1];
   const lastWeek = volume[volume.length - 8];
-  const pct = (a: number, b: number) => Math.round(((a - b) / b) * 100);
+  const pct = (a: number, b: number) => (b === 0 ? (a === 0 ? 0 : 100) : Math.round(((a - b) / b) * 100));
 
   const todaysAppts = getAppointments()
     .filter((a) => a.start.startsWith(DEMO_TODAY))
@@ -51,18 +42,35 @@ export default function OverviewPage() {
     [sliced],
   );
 
-  const attention = [
-    { id: "a1", icon: PhoneCall, tone: "warn" as const, title: "Sameer Joshi asked for you", body: "Upset about wait time on his last visit. Call back today.", cta: "Mark as called" },
-    { id: "a2", icon: UserRound, tone: "violet" as const, title: "Kabir wants a slot tomorrow", body: "You're normally closed Tuesdays. Reppy is waiting for your yes.", cta: "Open chat", href: "/dashboard/conversations" },
-    { id: "a3", icon: BookOpen, tone: "saffron" as const, title: `${getKnowledgeGaps().filter((g) => g.status === "waiting").length} questions Reppy couldn't answer`, body: "Parking and head massage. Answer once and Reppy remembers.", cta: "Answer", href: "/dashboard/knowledge" },
-    { id: "a4", icon: IndianRupee, tone: "neutral" as const, title: "₹200 deposit pending", body: "Fatima Shaikh, bridal trial on Fri 27 Nov.", cta: "Mark paid" },
-  ].filter((a) => !done.includes(a.id));
+  type Attention = { id: string; icon: typeof PhoneCall; tone: "warn" | "violet" | "saffron" | "neutral"; title: string; body: string; cta: string; href?: string };
+  const waitingGaps = getKnowledgeGaps().filter((g) => g.status === "waiting");
+  const sampleAttention: Attention[] = [
+    { id: "a1", icon: PhoneCall, tone: "warn", title: "Sameer Joshi asked for you", body: "Upset about wait time on his last visit. Call back today.", cta: "Mark as called" },
+    { id: "a2", icon: UserRound, tone: "violet", title: "Kabir wants a slot tomorrow", body: "You're normally closed Tuesdays. Reppy is waiting for your yes.", cta: "Open chat", href: "/dashboard/conversations" },
+    { id: "a3", icon: BookOpen, tone: "saffron", title: `${waitingGaps.length} questions Reppy couldn't answer`, body: "Parking and head massage. Answer once and Reppy remembers.", cta: "Answer", href: "/dashboard/knowledge" },
+    { id: "a4", icon: IndianRupee, tone: "neutral", title: "₹200 deposit pending", body: "Fatima Shaikh, bridal trial on Fri 27 Nov.", cta: "Mark paid" },
+  ];
+  // Real business: built from what's actually waiting.
+  const liveAttention: Attention[] = [
+    ...getConversations()
+      .filter((c) => c.status === "handoff")
+      .slice(0, 2)
+      .map((c): Attention => ({ id: `h_${c.id}`, icon: PhoneCall, tone: "warn", title: "A customer needs you", body: c.summary, cta: "Open chat", href: `/dashboard/conversations?id=${c.id}` })),
+    ...(waitingGaps.length
+      ? [{ id: "gaps", icon: BookOpen, tone: "saffron", title: `${waitingGaps.length} question${waitingGaps.length > 1 ? "s" : ""} Reppy couldn't answer`, body: waitingGaps.slice(0, 2).map((g) => g.question).join(" · "), cta: "Answer", href: "/dashboard/knowledge" } as Attention]
+      : []),
+    ...getAppointments()
+      .filter((a) => a.status === "awaiting-deposit" && a.start >= DEMO_TODAY)
+      .slice(0, 2)
+      .map((a): Attention => ({ id: `d_${a.id}`, icon: IndianRupee, tone: "neutral", title: `${formatINR(a.depositINR ?? 0)} deposit pending`, body: `${customerById(a.customerId).name}, ${serviceById(a.serviceId)?.name ?? "appointment"}`, cta: "Open", href: "/dashboard/appointments" })),
+  ];
+  const attention = (realData ? liveAttention : sampleAttention).filter((a) => !done.includes(a.id));
 
   const kpis = [
     { label: "Conversations today", value: today.whatsapp + today.calls, delta: pct(today.whatsapp + today.calls, lastWeek.whatsapp + lastWeek.calls), spark: volume.slice(-14).map((d) => d.whatsapp + d.calls) },
     { label: "Booked by Reppy", value: today.bookings, delta: pct(today.bookings, lastWeek.bookings), spark: volume.slice(-14).map((d) => d.bookings) },
     { label: "Missed calls recovered", value: today.missedRecovered, delta: pct(today.missedRecovered + 1, lastWeek.missedRecovered + 1), spark: volume.slice(-14).map((d) => d.missedRecovered) },
-    { label: "Upcoming bookings (est.)", value: formatINR(estRevenue), delta: 12, spark: volume.slice(-14).map((d) => d.bookings * 900), note: "vs last week" },
+    { label: "Upcoming bookings (est.)", value: formatINR(estRevenue), delta: realData ? undefined : 12, spark: volume.slice(-14).map((d) => d.bookings * 900), note: "vs last week" },
   ];
 
   return (
@@ -70,13 +78,16 @@ export default function OverviewPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[13px] text-fg-3">{formatDate(DEMO_TODAY, { weekday: "long", day: "numeric", month: "long" })}</p>
-          <h1 className="display mt-1 text-[44px] md:text-[52px]">Good evening, {biz.owner.split(" ")[0]}</h1>
+          <h1 className="display mt-1 text-[44px] md:text-[52px]">
+            {realData ? "Welcome back" : "Good evening"}
+            {biz.owner ? `, ${biz.owner.split(" ")[0]}` : ""}
+          </h1>
           <p className="mt-2 max-w-xl text-[15px] text-fg-2">
             Reppy handled {today.whatsapp + today.calls} conversations today and booked {today.bookings} appointments.
             {!live && " Bookings are paused — Reppy is only answering questions."}
           </p>
         </div>
-        <Link href="/#demo" className="text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+        <Link href={realData ? `/chat/${data.slug}` : "/#demo"} className="text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
           Try Reppy as a customer
         </Link>
       </div>
@@ -91,8 +102,8 @@ export default function OverviewPage() {
               <Sparkline values={k.spark} className="mb-1 hidden sm:block" />
             </div>
             <div className="mt-1.5 flex items-center gap-2 text-[12px] text-fg-3">
-              <Delta value={k.delta} />
-              <span>{k.note ?? "vs last Monday"}</span>
+              {k.delta !== undefined && <Delta value={k.delta} />}
+              <span>{k.delta === undefined ? "booked from today" : (k.note ?? "vs a week ago")}</span>
             </div>
           </div>
         ))}
@@ -171,6 +182,7 @@ export default function OverviewPage() {
       <div className="grid gap-6 xl:grid-cols-5">
         <Panel className="xl:col-span-2" title="Today's schedule" action={<Link href="/dashboard/appointments" className="text-[13px] text-fg-3 hover:text-fg">Calendar</Link>}>
           <ol className="relative space-y-1 before:absolute before:top-2 before:bottom-2 before:left-[3.4rem] before:w-px before:bg-line">
+            {todaysAppts.length === 0 && <li className="py-6 pl-16 text-[13.5px] text-fg-3">Nothing booked for today.</li>}
             {todaysAppts.map((a) => {
               const s = serviceById(a.serviceId)!;
               const c = customerById(a.customerId)!;

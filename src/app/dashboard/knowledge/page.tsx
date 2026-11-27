@@ -1,29 +1,38 @@
 "use client";
 import { AlertTriangle, CheckCircle2, FileText, Globe, Image as ImageIcon, Mic, Plus, Undo2, Upload } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { addFaq, answerGap, updateService } from "@/app/dashboard/actions";
 import { Panel, PageHeader } from "@/components/dashboard/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Input, Segmented, Textarea } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
-import { DEMO_TODAY, getBusiness, getChangeLog, getFaqs, getKnowledgeGaps, getServices, getStaff } from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 import type { ChangeLogEntry, Faq, KnowledgeGap, Service } from "@/lib/types";
 import { cn, formatINR, formatTime, relativeDay } from "@/lib/utils";
 
 type Tab = "summary" | "services" | "faqs" | "gaps" | "log";
 
 export default function KnowledgePage() {
+  const { DEMO_TODAY, getBusiness, getChangeLog, getFaqs, getKnowledgeGaps, getServices, getStaff, live } = useData();
   const toast = useToast();
   const biz = getBusiness();
   const [tab, setTab] = useState<Tab>("summary");
   const [services, setServices] = useState<Service[]>(getServices());
   const [faqs, setFaqs] = useState<Faq[]>(getFaqs());
   const [gaps, setGaps] = useState<KnowledgeGap[]>(getKnowledgeGaps());
+  // After a save the server sends fresh data; show it.
+  const serverServices = getServices();
+  const serverFaqs = getFaqs();
+  const serverGaps = getKnowledgeGaps();
+  useEffect(() => setServices(serverServices), [serverServices]);
+  useEffect(() => setFaqs(serverFaqs), [serverFaqs]);
+  useEffect(() => setGaps(serverGaps), [serverGaps]);
   const [log, setLog] = useState<ChangeLogEntry[]>(getChangeLog());
   const waiting = gaps.filter((g) => g.status === "waiting");
 
   const addLog = (description: string) =>
-    setLog((l) => [{ id: `cl_${Date.now()}`, businessId: biz.id, at: `${DEMO_TODAY}T19:48:00`, by: "Priya", via: "Dashboard", description }, ...l]);
+    setLog((l) => [{ id: `cl_${Date.now()}`, businessId: biz.id, at: `${DEMO_TODAY}T19:48:00`, by: biz.owner || "You", via: "Dashboard", description }, ...l]);
 
   return (
     <>
@@ -177,6 +186,16 @@ export default function KnowledgePage() {
                         onBlur={(e) => {
                           const v = Number(e.target.value);
                           if (v && v !== s.priceINR) {
+                            if (live) {
+                              updateService(s.id, { priceINR: v }).then((r) => {
+                                if (r.ok) {
+                                  addLog(`${s.name} price ${formatINR(s.priceINR)} → ${formatINR(v)}`);
+                                  setServices((all) => all.map((x) => (x.id === s.id ? { ...x, priceINR: v } : x)));
+                                  toast(`${s.name} is now ${formatINR(v)}`);
+                                } else toast(r.error);
+                              });
+                              return;
+                            }
                             addLog(`${s.name} price ${formatINR(s.priceINR)} → ${formatINR(v)}`);
                             setServices((all) => all.map((x) => (x.id === s.id ? { ...x, priceINR: v } : x)));
                             toast(`${s.name} is now ${formatINR(v)}`);
@@ -193,6 +212,16 @@ export default function KnowledgePage() {
                         onBlur={(e) => {
                           const v = Number(e.target.value);
                           if (v && v !== s.durationMin) {
+                            if (live) {
+                              updateService(s.id, { durationMin: v }).then((r) => {
+                                if (r.ok) {
+                                  addLog(`${s.name} duration ${s.durationMin} → ${v} min`);
+                                  setServices((all) => all.map((x) => (x.id === s.id ? { ...x, durationMin: v } : x)));
+                                  toast(`${s.name} now takes ${v} min`);
+                                } else toast(r.error);
+                              });
+                              return;
+                            }
                             addLog(`${s.name} duration ${s.durationMin} → ${v} min`);
                             setServices((all) => all.map((x) => (x.id === s.id ? { ...x, durationMin: v } : x)));
                             toast(`${s.name} now takes ${v} min`);
@@ -220,11 +249,15 @@ export default function KnowledgePage() {
             <GapCard
               key={g.id}
               gap={g}
-              onAnswer={(answer) => {
+              onAnswer={async (answer) => {
+                if (live) {
+                  const r = await answerGap(g.id, answer, g.question);
+                  if (!r.ok) return toast(r.error);
+                }
                 setGaps((all) => all.map((x) => (x.id === g.id ? { ...x, status: "answered", answer } : x)));
                 setFaqs((f) => [...f, { id: `fq_${Date.now()}`, q: g.question, a: answer }]);
                 addLog(`Added FAQ: ${g.question}`);
-                toast(`Saved. Reppy replied to ${g.askedBy.split(" ")[0]} with your answer.`);
+                toast(live ? "Saved. Reppy will use this answer from now on." : `Saved. Reppy replied to ${g.askedBy.split(" ")[0]} with your answer.`);
               }}
             />
           ))}
@@ -242,7 +275,7 @@ export default function KnowledgePage() {
                     {e.by} via {e.via} · {relativeDay(e.at, DEMO_TODAY)} {formatTime(e.at)}
                   </div>
                 </div>
-                {e.undone ? (
+                {live ? null : e.undone ? (
                   <span className="text-[12.5px] text-fg-3">Undone</span>
                 ) : (
                   <Button
@@ -266,6 +299,7 @@ export default function KnowledgePage() {
 }
 
 function GapCard({ gap, onAnswer }: { gap: KnowledgeGap; onAnswer: (a: string) => void }) {
+  const { DEMO_TODAY } = useData();
   const [text, setText] = useState("");
   return (
     <div className={cn("panel p-5", gap.status === "waiting" && "ring-1 ring-saffron-500/25")}>
@@ -311,6 +345,7 @@ function FaqEditor({
   policies: string[];
   onLog: (d: string) => void;
 }) {
+  const { live } = useData();
   const toast = useToast();
   const [adding, setAdding] = useState(false);
   const [q, setQ] = useState("");
@@ -328,10 +363,16 @@ function FaqEditor({
         {adding && (
           <form
             className="mb-5 space-y-2 rounded-2xl bg-white/[0.02] p-4 ring-1 ring-line"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               if (!q.trim() || !a.trim()) return;
-              setFaqs((f) => [{ id: `fq_${Date.now()}`, q, a }, ...f]);
+              let id = `fq_${Date.now()}`;
+              if (live) {
+                const r = await addFaq(q, a);
+                if (!r.ok) return toast(r.error);
+                id = r.id;
+              }
+              setFaqs((f) => [{ id, q, a }, ...f]);
               onLog(`Added FAQ: ${q}`);
               toast("FAQ added");
               setQ("");

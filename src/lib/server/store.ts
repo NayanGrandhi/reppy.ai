@@ -164,7 +164,11 @@ async function uniqueSlug(name: string, exists: (s: string) => Promise<boolean>)
 }
 
 /** Create a new business brain. Demo businesses can't be overwritten from the web. */
-export async function createBrain(brain: Brain, sources: { kind: "website" | "image" | "pdf" | "text"; label: string }[]): Promise<string> {
+export async function createBrain(
+  brain: Brain,
+  sources: { kind: "website" | "image" | "pdf" | "text"; label: string }[],
+  ownerId?: string,
+): Promise<string> {
   const supa = db();
   if (!supa) {
     const m = mem();
@@ -176,7 +180,7 @@ export async function createBrain(brain: Brain, sources: { kind: "website" | "im
     const { data } = await supa.from("businesses").select("id").eq("slug", s).maybeSingle();
     return Boolean(data);
   });
-  const { data, error } = await supa.from("businesses").insert({ slug, ...bizRow(brain) }).select("id").single();
+  const { data, error } = await supa.from("businesses").insert({ slug, ...bizRow(brain), ...(ownerId ? { owner_id: ownerId } : {}) }).select("id").single();
   if (error) throw error;
   await writeChildren(supa, data.id, brain);
   if (sources.length) await supa.from("sources").insert(sources.map((s) => ({ business_id: data.id, kind: s.kind, label: s.label.slice(0, 200) })));

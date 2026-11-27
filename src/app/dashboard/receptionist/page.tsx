@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Segmented, Select, Textarea, Toggle } from "@/components/ui/controls";
 import { LogoMark } from "@/components/ui/logo";
 import { useToast } from "@/components/ui/toast";
-import { getBusiness, getReceptionistConfig } from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 import type { Language, ReceptionistConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,7 @@ const greetings: Record<ReceptionistConfig["personality"], (biz: string, name: s
 };
 
 export default function ReceptionistPage() {
+  const { getBusiness, getReceptionistConfig } = useData();
   const biz = getBusiness();
   const toast = useToast();
   const [saved, setSaved] = useState<ReceptionistConfig>(getReceptionistConfig());

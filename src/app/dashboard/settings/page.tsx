@@ -1,6 +1,7 @@
 "use client";
 import { CheckCircle2, MessageCircle, Plus, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
+import { saveBusinessDetails, saveUpiId } from "@/app/dashboard/actions";
 import { TemplateList } from "@/components/dashboard/template-list";
 import { UpiRequestCard } from "@/components/upi-request";
 import { isValidUpiId } from "@/lib/upi";
@@ -10,13 +11,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Toggle } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
-import { getBusiness } from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 
 const sections = ["Business", "Team & admin numbers", "WhatsApp", "Payments", "Daily report", "Usage limits", "Data & privacy"];
 
 export default function SettingsPage() {
+  const { getBusiness, live } = useData();
   const biz = getBusiness();
   const toast = useToast();
+  const [name, setName] = useState(biz.name);
+  const [type, setType] = useState<string>(biz.type);
+  const [address, setAddress] = useState(biz.address);
+  const [saving, setSaving] = useState(false);
+  // Things that need WhatsApp connected first (Phase 3).
+  const later = (sample: string) => toast(live ? "This works once WhatsApp is connected." : sample);
   const [upi, setUpi] = useState(biz.upiId);
   const [report, setReport] = useState(true);
   const [reportTime, setReportTime] = useState("21:30");
@@ -24,11 +32,13 @@ export default function SettingsPage() {
   const [alertAt, setAlertAt] = useState(true);
   const previewRequest = useMemo(() => ({ upiId: upi, payeeName: biz.name, amountINR: 200, note: "Deposit: test booking" }), [upi, biz.name]);
 
-  const team = [
+  const team = live
+    ? [{ name: biz.owner || "You", role: "Owner", phone: biz.phone || "Add on WhatsApp setup", verified: true }]
+    : [
     { name: "Priya Sharma", role: "Owner", phone: "+91 98200 41177", verified: true },
     { name: "Anita", role: "Staff · can update services", phone: "+91 98191 70022", verified: true },
     { name: "Rahul", role: "Staff · view only", phone: "+91 90044 18391", verified: false },
-  ];
+      ];
 
   return (
     <>
@@ -50,10 +60,10 @@ export default function SettingsPage() {
           <Panel title="Business" className="scroll-mt-24" >
             <div id="business" className="grid gap-4 md:grid-cols-2">
               <Field label="Business name">
-                <Input defaultValue={biz.name} />
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
               </Field>
               <Field label="Type">
-                <Select defaultValue={biz.type}>
+                <Select value={type} onChange={(e) => setType(e.target.value)}>
                   {["Salon", "Clinic", "Restaurant", "Gym", "Coaching", "Real estate", "Repair shop", "Other"].map((t) => (
                     <option key={t}>{t}</option>
                   ))}
@@ -61,18 +71,30 @@ export default function SettingsPage() {
               </Field>
               <div className="md:col-span-2">
                 <Field label="Address">
-                  <Input defaultValue={biz.address} />
+                  <Input value={address} onChange={(e) => setAddress(e.target.value)} />
                 </Field>
               </div>
             </div>
             <div className="mt-5 flex justify-end">
-              <Button size="sm" onClick={() => toast("Business details saved")}>
+              <Button
+                size="sm"
+                disabled={saving}
+                onClick={async () => {
+                  if (live) {
+                    setSaving(true);
+                    const r = await saveBusinessDetails({ name, type, address });
+                    setSaving(false);
+                    if (!r.ok) return toast(r.error);
+                  }
+                  toast("Business details saved");
+                }}
+              >
                 Save business details
               </Button>
             </div>
           </Panel>
 
-          <Panel title="Team & admin numbers" action={<Button size="sm" variant="secondary" onClick={() => toast("Verification code sent on WhatsApp")}><Plus className="size-3.5" /> Add number</Button>}>
+          <Panel title="Team & admin numbers" action={<Button size="sm" variant="secondary" onClick={() => later("Verification code sent on WhatsApp")}><Plus className="size-3.5" /> Add number</Button>}>
             <p id="team-admin-numbers" className="mb-4 text-[13.5px] text-fg-3">
               Only these verified numbers can change prices, timings or pause bookings by messaging Reppy. Big changes always need a “YES” to confirm.
             </p>
@@ -91,7 +113,7 @@ export default function SettingsPage() {
                       <CheckCircle2 className="size-3" /> Verified
                     </Badge>
                   ) : (
-                    <Button size="sm" variant="ghost" onClick={() => toast(`Code re-sent to ${t.phone}`)}>
+                    <Button size="sm" variant="ghost" onClick={() => later(`Code re-sent to ${t.phone}`)}>
                       Resend code
                     </Button>
                   )}
@@ -107,11 +129,15 @@ export default function SettingsPage() {
               </span>
               <div className="flex-1">
                 <div className="flex items-center gap-2 text-[14px] font-medium">
-                  Meta test number <Badge tone="warn">Testing</Badge>
+                  {live ? "Not connected yet" : "Meta test number"} <Badge tone="warn">{live ? "Coming next" : "Testing"}</Badge>
                 </div>
-                <div className="text-[13px] text-fg-3">Connected via WhatsApp Business Platform. Move to your own number after business verification.</div>
+                <div className="text-[13px] text-fg-3">
+                  {live
+                    ? "Reppy will answer on WhatsApp once it's connected through Meta's WhatsApp Business Platform."
+                    : "Connected via WhatsApp Business Platform. Move to your own number after business verification."}
+                </div>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => toast("We'll guide you through Meta business verification")}>
+              <Button variant="secondary" size="sm" onClick={() => later("We'll guide you through Meta business verification")}>
                 Connect my number
               </Button>
             </div>
@@ -125,7 +151,13 @@ export default function SettingsPage() {
               <Field label="Your UPI ID" hint="Reppy sends customers a UPI link or QR for deposits. Money goes straight to you — no gateway, no fees from us.">
                 <Input value={upi} onChange={(e) => setUpi(e.target.value)} />
               </Field>
-              <Button variant="secondary" className="mb-[26px]" disabled={!isValidUpiId(upi)} onClick={() => toast(`UPI ID saved: ${upi}`)}>
+              <Button variant="secondary" className="mb-[26px]" disabled={!isValidUpiId(upi)} onClick={async () => {
+                  if (live) {
+                    const r = await saveUpiId(upi);
+                    if (!r.ok) return toast(r.error);
+                  }
+                  toast(`UPI ID saved: ${upi}`);
+                }}>
                 Save UPI ID
               </Button>
             </div>
@@ -170,10 +202,10 @@ export default function SettingsPage() {
                 Reppy follows India&apos;s DPDP Act: it collects only what&apos;s needed to book and follow up, honours STOP replies, and lets you or your customers delete data at any time.
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" size="sm" onClick={() => toast("Export started. We'll WhatsApp you a download link.")}>
+                <Button variant="secondary" size="sm" onClick={() => toast(live ? "Data export arrives in a later update." : "Export started. We'll WhatsApp you a download link.")}>
                   Export all data
                 </Button>
-                <Button variant="ghost" size="sm" className="text-bad" onClick={() => toast("To delete your business, confirm by replying DELETE on WhatsApp")}>
+                <Button variant="ghost" size="sm" className="text-bad" onClick={() => toast(live ? "Deleting a business from here arrives in a later update." : "To delete your business, confirm by replying DELETE on WhatsApp")}>
                   Delete business and all data
                 </Button>
               </div>

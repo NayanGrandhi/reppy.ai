@@ -1,7 +1,8 @@
 "use client";
 import { ArrowDownUp, Download, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { deleteCustomer, saveCustomerNote } from "@/app/dashboard/actions";
 import { ChannelIcon, StatusBadge, apptMeta } from "@/components/dashboard/bits";
 import { PageHeader } from "@/components/dashboard/shell";
 import { Avatar } from "@/components/ui/avatar";
@@ -10,16 +11,19 @@ import { Button } from "@/components/ui/button";
 import { Segmented, Textarea } from "@/components/ui/controls";
 import { Drawer } from "@/components/ui/overlay";
 import { useToast } from "@/components/ui/toast";
-import { DEMO_TODAY, getAppointments, getConversations, getCustomers, serviceById } from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 import type { Customer } from "@/lib/types";
 import { cn, formatDate, formatINR, formatTime, relativeDay } from "@/lib/utils";
 
 type SortKey = "name" | "visits" | "spendINR" | "firstSeen";
 
 function CustomersInner() {
+  const { getCustomers, live } = useData();
   const params = useSearchParams();
   const toast = useToast();
-  const [list, setList] = useState<Customer[]>(getCustomers());
+  const serverList = getCustomers();
+  const [list, setList] = useState<Customer[]>(serverList);
+  useEffect(() => setList(serverList), [serverList]);
   const [q, setQ] = useState("");
   const [seg, setSeg] = useState<"all" | "Regular" | "New">("all");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "spendINR", dir: -1 });
@@ -51,7 +55,7 @@ function CustomersInner() {
         title="Customers"
         description="Everyone who has messaged or called. Reppy only keeps what it needs to book and follow up."
         actions={
-          <Button variant="secondary" onClick={() => toast("customers.csv exported")}>
+          <Button variant="secondary" onClick={() => toast(live ? "Export arrives in a later update" : "customers.csv exported")}>
             <Download className="size-4" /> Export CSV
           </Button>
         }
@@ -130,11 +134,19 @@ function CustomersInner() {
         {open && (
           <CustomerDetail
             c={open}
-            onSaveNote={(notes) => {
+            onSaveNote={async (notes) => {
+              if (live) {
+                const r = await saveCustomerNote(open.id, notes);
+                if (!r.ok) return toast(r.error);
+              }
               setList((l) => l.map((x) => (x.id === open.id ? { ...x, notes } : x)));
               toast("Note saved. Reppy will use it in future chats.");
             }}
-            onDelete={() => {
+            onDelete={async () => {
+              if (live) {
+                const r = await deleteCustomer(open.id);
+                if (!r.ok) return toast(r.error);
+              }
               setList((l) => l.filter((x) => x.id !== open.id));
               setOpenId(null);
               toast(`${open.name}'s data deleted`);
@@ -155,6 +167,7 @@ export default function CustomersPage() {
 }
 
 function CustomerDetail({ c, onSaveNote, onDelete }: { c: Customer; onSaveNote: (n: string) => void; onDelete: () => void }) {
+  const { DEMO_TODAY, getAppointments, getConversations, serviceById } = useData();
   const [note, setNote] = useState(c.notes);
   const [confirm, setConfirm] = useState(false);
   const convos = getConversations().filter((x) => x.customerId === c.id);

@@ -4,7 +4,7 @@ import { Bell, CalendarDays, IndianRupee, MessagesSquare, PhoneCall, Search, Use
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { customerById, getAppointments, getConversations, getCustomers, getKnowledgeGaps, serviceById } from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 import { cn, formatDay, formatTime } from "@/lib/utils";
 
 type Result = { id: string; group: string; title: string; sub: string; href: string; icon: typeof Search };
@@ -19,6 +19,7 @@ function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void)
 
 /** Search across customers, conversations and appointments. Press / to focus. */
 export function DashboardSearch() {
+  const { customerById, getAppointments, getConversations, getCustomers, serviceById } = useData();
   const router = useRouter();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -155,6 +156,7 @@ export function DashboardSearch() {
 
 /** The bell: things that need the owner, each linking to where to act. */
 export function Notifications() {
+  const { customerById, getAppointments, getConversations, getKnowledgeGaps, serviceById } = useData();
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(false);
   const box = useRef<HTMLDivElement>(null);

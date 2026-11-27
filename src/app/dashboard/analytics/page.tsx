@@ -5,30 +5,41 @@ import { Delta } from "@/components/dashboard/bits";
 import { Panel, PageHeader } from "@/components/dashboard/shell";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/controls";
-import { getDailyVolume, getPeakHours, getTopQuestions } from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 import { formatDate } from "@/lib/utils";
 
 export default function AnalyticsPage() {
+  const { getDailyVolume, getPeakHours, getTopQuestions, live, getConversations } = useData();
   const all = getDailyVolume();
   const [range, setRange] = useState<"7" | "30">("30");
   const d = all.slice(-Number(range));
   const sum = (k: "whatsapp" | "calls" | "bookings" | "missedRecovered") => d.reduce((a, x) => a + x[k], 0);
   const convos = sum("whatsapp") + sum("calls");
-  const conversion = Math.round((sum("bookings") / convos) * 100);
+  const conversion = convos ? Math.round((sum("bookings") / convos) * 100) : 0;
   const hours = Array.from({ length: 13 }, (_, i) => {
     const h = 9 + i;
     return h === 12 ? "12p" : h > 12 ? `${h - 12}p` : `${h}a`;
   });
   const questions = getTopQuestions();
-  const maxQ = Math.max(...questions.map((q) => q.count));
+  const maxQ = Math.max(1, ...questions.map((q) => q.count));
 
-  const kpis = [
+  const handoffs = getConversations().filter((c) => c.status === "handoff").length;
+  const totalConvos = getConversations().length;
+  const kpis: { label: string; value: string | number; delta?: number; hint?: string }[] = live
+    ? [
+        { label: "Conversations", value: convos.toLocaleString("en-IN"), hint: `last ${range} days` },
+        { label: "Bookings made", value: sum("bookings"), hint: `last ${range} days` },
+        { label: "Handled without you", value: totalConvos ? `${Math.round(((totalConvos - handoffs) / totalConvos) * 100)}%` : "—", hint: "last 30 days" },
+        { label: "Phone calls", value: "—", hint: "arrive in a later phase" },
+        { label: "Missed calls recovered", value: "—", hint: "arrive in a later phase" },
+      ]
+    : [
     { label: "Conversations", value: convos.toLocaleString("en-IN"), delta: 18 },
     { label: "Booking conversion", value: `${conversion}%`, delta: 4 },
     { label: "Handled without you", value: "94%", delta: 2 },
     { label: "Avg. call length", value: "1:52", delta: -6, hint: "shorter is better" },
     { label: "Missed calls recovered", value: sum("missedRecovered"), delta: 22 },
-  ];
+      ];
 
   return (
     <>
@@ -53,7 +64,7 @@ export default function AnalyticsPage() {
             <div className="text-[13px] text-fg-3">{k.label}</div>
             <div className="mt-2 text-[26px] font-semibold tracking-tight tabular-nums">{k.value}</div>
             <div className="mt-1 flex items-center gap-2 text-[12px] text-fg-3">
-              <Delta value={k.delta} /> {k.hint ?? "vs previous period"}
+              {k.delta !== undefined && <Delta value={k.delta} />} {k.hint ?? "vs previous period"}
             </div>
           </div>
         ))}

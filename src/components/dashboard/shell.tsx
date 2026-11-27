@@ -18,7 +18,7 @@ import { DashboardSearch, Notifications } from "@/components/dashboard/search";
 import { Avatar } from "@/components/ui/avatar";
 import { Logo } from "@/components/ui/logo";
 import { ToastProvider, useToast } from "@/components/ui/toast";
-import { getBusiness, getKnowledgeGaps } from "@/lib/services";
+import { useData } from "@/lib/dashboard/context";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -37,6 +37,7 @@ const LiveCtx = createContext<{ live: boolean; setLive: (v: boolean) => void }>(
 export const useLive = () => useContext(LiveCtx);
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
+  const { getKnowledgeGaps } = useData();
   const path = usePathname();
   const waiting = getKnowledgeGaps().filter((g) => g.status === "waiting").length;
   return (
@@ -67,32 +68,47 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarFooter() {
+function SidebarFooter({ email }: { email?: string }) {
+  const { getBusiness, data, live } = useData();
   const biz = getBusiness();
+  const { repliesToday, dailyCap } = data.usage;
+  const pct = Math.min(100, Math.round((repliesToday / Math.max(dailyCap, 1)) * 100));
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-line bg-white/[0.02] p-3.5">
         <div className="flex items-center justify-between text-[12.5px]">
-          <span className="text-fg-2">Conversations this month</span>
-          <span className="tabular-nums text-fg">412 / 500</span>
+          <span className="text-fg-2">AI replies today</span>
+          <span className="tabular-nums text-fg">
+            {repliesToday} / {dailyCap}
+          </span>
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-600">
-          <div className="h-full w-[82%] rounded-full bg-violet-500" />
+          <div className="h-full rounded-full bg-violet-500" style={{ width: `${pct}%` }} />
         </div>
-        <p className="mt-2 text-[12px] text-fg-3">Usage cap keeps costs predictable. Resets 1 Dec.</p>
+        <p className="mt-2 text-[12px] text-fg-3">A daily cap keeps costs predictable. Resets at midnight.</p>
       </div>
       <div className="flex items-center gap-3 px-1">
-        <Avatar name={biz.owner} size={34} />
-        <div className="min-w-0 text-[13px] leading-tight">
-          <div className="truncate font-medium">{biz.owner}</div>
+        <Avatar name={biz.owner || biz.name} size={34} />
+        <div className="min-w-0 flex-1 text-[13px] leading-tight">
+          <div className="truncate font-medium">{biz.owner || email}</div>
           <div className="truncate text-fg-3">Owner, {biz.name}</div>
         </div>
       </div>
+      {live ? (
+        <form action="/auth/signout" method="post" className="px-1">
+          <button className="text-[12.5px] text-fg-3 hover:text-fg-2">Sign out</button>
+        </form>
+      ) : (
+        <Link href="/login" className="block px-1 text-[12.5px] text-violet-300 hover:underline">
+          Sign in to see your business
+        </Link>
+      )}
     </div>
   );
 }
 
 function Topbar({ onMenu }: { onMenu: () => void }) {
+  const { getBusiness, live: realData } = useData();
   const biz = getBusiness();
   const { live, setLive } = useLive();
   const toast = useToast();
@@ -103,11 +119,16 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       </button>
       <div className="hidden min-w-0 items-center gap-2 text-sm sm:flex">
         <span className="font-medium">{biz.name}</span>
-        <span className="text-fg-3">{biz.type}, Bandra</span>
+        <span className="text-fg-3">
+          {biz.type}
+          {biz.city ? `, ${biz.city}` : ""}
+        </span>
       </div>
-      <span className="hidden rounded-full border border-dashed border-line-strong px-2.5 py-0.5 text-[11.5px] text-fg-3 md:inline">
-        Sample data
-      </span>
+      {!realData && (
+        <Link href="/login" className="hidden rounded-full border border-dashed border-line-strong px-2.5 py-0.5 text-[11.5px] text-fg-3 hover:text-fg-2 md:inline">
+          Sample data · Sign in for yours
+        </Link>
+      )}
       <div className="ml-auto flex items-center gap-2">
         <DashboardSearch />
         <button
@@ -130,7 +151,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
   );
 }
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+export function DashboardShell({ children, email }: { children: React.ReactNode; email?: string }) {
   const [open, setOpen] = useState(false);
   const [live, setLive] = useState(true);
   return (
@@ -142,7 +163,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <Logo className="mb-8 px-2 pt-2" />
               <NavList />
             </div>
-            <SidebarFooter />
+            <SidebarFooter email={email} />
           </aside>
 
           {open && (
@@ -158,7 +179,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   </div>
                   <NavList onNavigate={() => setOpen(false)} />
                 </div>
-                <SidebarFooter />
+                <SidebarFooter email={email} />
               </aside>
             </div>
           )}
