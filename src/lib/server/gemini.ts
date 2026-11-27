@@ -9,6 +9,8 @@ import "server-only";
 import { z } from "zod";
 
 export const GEMINI_MODEL = process.env.REPPY_GEMINI_MODEL || "gemini-flash-latest";
+// Tried next when the main model is overloaded (Google's free tier often is).
+const FALLBACK_MODEL = process.env.REPPY_GEMINI_FALLBACK_MODEL || "gemini-flash-lite-latest";
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export const geminiConfigured = () => Boolean(process.env.GEMINI_API_KEY);
@@ -44,7 +46,7 @@ export async function geminiStreamJson<T>(opts: {
 }): Promise<T> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY is missing.");
-  const res = await (opts.fetchImpl ?? fetch)(`${ENDPOINT}/${encodeURIComponent(GEMINI_MODEL)}:streamGenerateContent?alt=sse`, {
+  const call = (model: string) => (opts.fetchImpl ?? fetch)(`${ENDPOINT}/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify({
@@ -58,9 +60,11 @@ export async function geminiStreamJson<T>(opts: {
       },
     }),
   });
+  let res = await call(GEMINI_MODEL);
+  if ([429, 500, 503, 404].includes(res.status)) res = await call(FALLBACK_MODEL);
   if (!res.ok || !res.body) {
     const detail = await res.text().catch(() => "");
-    if (res.status === 429) throw new Error("The free demo AI is busy (Google's free limit). Wait a minute and try again.");
+    if (res.status === 429 || res.status === 503) throw new Error("The free demo AI is busy (Google's free limit). Wait a minute and try again.");
     throw new Error(`Gemini error ${res.status}: ${detail.slice(0, 300)}`);
   }
 

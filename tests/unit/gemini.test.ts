@@ -69,6 +69,23 @@ describe("Gemini streaming", () => {
     ).rejects.toThrow(/busy/);
   });
 
+  it("falls back to the lighter model when Google is overloaded", async () => {
+    process.env.GEMINI_API_KEY = "test";
+    const urls: string[] = [];
+    const full = JSON.stringify({ reply: "Hi", language: "English", intent: "Other", needsOwner: false, ownerQuestion: "", handoff: false, handoffReason: "" });
+    const out = await geminiStreamJson({
+      system: "s",
+      messages: [{ role: "user", text: "hi" }],
+      schema: ChatTurnSchema,
+      fetchImpl: async (u) => {
+        urls.push(String(u));
+        return urls.length === 1 ? new Response("busy", { status: 503 }) : sse([full]);
+      },
+    });
+    expect(out.reply).toBe("Hi");
+    expect(urls[1]).toContain("flash-lite");
+  });
+
   it("sends a schema Gemini accepts", () => {
     const s = JSON.stringify(geminiSchema(ChatTurnSchema));
     expect(s).not.toContain("$schema");
