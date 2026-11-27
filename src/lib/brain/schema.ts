@@ -86,6 +86,8 @@ export interface StoredBrain {
   brain: Brain;
   isDemo: boolean;
   updatedAt: string;
+  /** Owner's AI Receptionist settings (defaults when not set). */
+  receptionist?: import("./receptionist").ReceptionistSettings;
 }
 
 export const emptyBrain = (): Brain => ({

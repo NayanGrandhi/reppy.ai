@@ -5,6 +5,7 @@
 // key after we've confirmed the business is theirs.
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { ReceptionistSchema } from "@/lib/brain/receptionist";
 import { isValidUpiId } from "@/lib/upi";
 import { bookingMessages, bookSlot } from "@/lib/server/bookings";
 import { ownedBusinessId, toIst } from "@/lib/server/dashboard";
@@ -186,6 +187,18 @@ export async function saveUpiId(upi: string): Promise<Result> {
   if (!o) return SIGNED_OUT;
   if (!o.businessId) return NO_BUSINESS;
   const { error } = await o.supa.from("businesses").update({ upi_id: upi.trim(), updated_at: new Date().toISOString() }).eq("id", o.businessId);
+  if (error) return SAVE_FAILED;
+  revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+/** AI Receptionist settings. Reppy uses them from the next customer message. */
+export async function saveReceptionist(input: unknown): Promise<Result> {
+  const o = await owner();
+  if (!o) return SIGNED_OUT;
+  if (!o.businessId) return NO_BUSINESS;
+  const settings = ReceptionistSchema.parse(input ?? {});
+  const { error } = await o.supa.from("businesses").update({ receptionist: settings, updated_at: new Date().toISOString() }).eq("id", o.businessId);
   if (error) return SAVE_FAILED;
   revalidatePath("/dashboard", "layout");
   return { ok: true };

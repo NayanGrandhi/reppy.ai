@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { type Brain, ExtractionSchema, type Extraction } from "@/lib/brain/schema";
+import { type ReceptionistSettings, receptionistRules } from "@/lib/brain/receptionist";
 import { templates } from "@/lib/brain/templates";
 import { geminiConfigured, geminiStreamJson } from "./gemini";
 
@@ -110,8 +111,22 @@ export const ChatTurnSchema = z.object({
   ownerQuestion: z.string().describe("If needsOwner: the exact question to ask the owner, in plain English. Otherwise empty."),
   handoff: z.boolean().describe("true if the customer is upset, asks for a human, or mentions an emergency"),
   handoffReason: z.string().describe("Short reason if handoff, otherwise empty"),
+  booking: z
+    .object({
+      ready: z.boolean().describe("true only when the customer has just confirmed one service, date and time, and has given their name and 10-digit mobile number"),
+      service: z.string().describe("Service name exactly as in <business_brain>, or empty"),
+      staff: z.string().describe("Staff name if the customer asked for someone, otherwise empty"),
+      date: z.string().describe("YYYY-MM-DD, or empty"),
+      time: z.string().describe("HH:MM in 24-hour time, or empty"),
+      customerName: z.string().describe("Customer's name, or empty"),
+      customerPhone: z.string().describe("Customer's mobile number, or empty"),
+      depositApplies: z.boolean().describe("true if the business's deposit rule applies to this service"),
+    })
+    .describe("The booking being made. Set ready=false until everything is confirmed."),
 });
 export type ChatTurn = z.infer<typeof ChatTurnSchema>;
+export type BookingRequest = ChatTurn["booking"];
+export const noBooking: BookingRequest = { ready: false, service: "", staff: "", date: "", time: "", customerName: "", customerPhone: "", depositApplies: false };
 
 export interface ChatHistoryItem {
   role: "customer" | "reppy";
@@ -129,18 +144,20 @@ function istNow() {
  * - `dynamic`: the current time and whether this is the first reply. Kept after
  *   the cache point so it doesn't break the cache.
  */
-export function buildChatSystemParts(brain: Brain, isFirstReply: boolean): { stable: string; dynamic: string } {
+export function buildChatSystemParts(brain: Brain, isFirstReply: boolean, settings?: ReceptionistSettings): { stable: string; dynamic: string } {
   const t = templates[brain.type];
+  const name = settings?.name || "Reppy";
   const rules = [
-    `You are Reppy, the AI receptionist for ${brain.name}. You chat with customers on WhatsApp.`,
+    `You are ${name}, the AI receptionist for ${brain.name}. You chat with customers on WhatsApp.`,
     "",
     "Facts:",
     "- Only state prices, timings, services, staff, policies and availability that are in <business_brain>. Never invent or estimate them.",
     `- If the answer isn't in <business_brain>, say "Let me confirm and get back to you" (in the customer's language), set needsOwner to true and write the question for the owner in ownerQuestion.`,
-    "- You can't see the live calendar yet. For bookings, collect the service, preferred day and time (and staff if they care), check it's within opening hours and not on a closed day, then say you've noted the request and the team will confirm on WhatsApp shortly. Never say a booking is confirmed.",
+    "- Bookings: collect the service, day and time (and staff if they care), and the customer's name and 10-digit mobile number. Check the time is within opening hours and not on a closed day. Repeat the details once and ask them to confirm.",
+    "- When they confirm, fill booking with ready=true and reply with one short line such as \"Checking that slot for you…\". Never say it's booked yourself: the system checks the live calendar and adds the confirmation, or other free times, after your line. Use dates relative to the current date below (\"kal\" = tomorrow).",
     brain.customFields.length ? `- Before noting a booking request, also ask: ${brain.customFields.map((c) => c.label).join("; ")}.` : "",
     brain.bookingRules.depositINR
-      ? `- Deposit rule: ₹${brain.bookingRules.depositINR}${brain.bookingRules.notes ? ` (${brain.bookingRules.notes.replace(/\.$/, "")})` : ""}, paid by UPI${brain.upiId ? ` to ${brain.upiId}` : ""}. Never ask for card or bank details.`
+      ? `- Deposit rule: ₹${brain.bookingRules.depositINR}${brain.bookingRules.notes ? ` (${brain.bookingRules.notes.replace(/\.$/, "")})` : ""}, paid by UPI${brain.upiId ? ` to ${brain.upiId}` : ""}. The system sends the UPI link after booking. Never ask for card or bank details.`
       : "",
     "",
     "Safety:",
@@ -149,16 +166,17 @@ export function buildChatSystemParts(brain: Brain, isFirstReply: boolean): { sta
     "- If the customer is upset, asks for a person, or mentions an emergency: set handoff to true, apologise briefly once and say the team will contact them soon.",
     ...t.extraRules.map((r) => `- ${r}`),
     "- If someone says STOP, confirm they won't get more messages.",
+    ...(settings ? ["", "Owner's settings:", ...receptionistRules(settings)] : []),
     "",
     "Style:",
     "- Reply in the customer's language. If they mix Hindi and English (Hinglish, Roman script), reply in Hinglish the same way. If they write in Devanagari, reply in Devanagari.",
-    "- Keep replies short like WhatsApp: 1–3 sentences, plain text, ₹ for prices, 12-hour times like 5:30 pm. At most one emoji.",
+    `- Keep replies short like WhatsApp: 1–3 sentences, plain text, ₹ for prices, 12-hour times like 5:30 pm.${settings ? "" : " At most one emoji."}`,
     "",
     "<business_brain>",
     JSON.stringify(brain, null, 1),
     "</business_brain>",
   ];
-  const stable = rules.filter((l) => l !== "").join("\n").replace(/\n(Facts:|Safety:|Style:|<business_brain>)/g, "\n\n$1");
+  const stable = rules.filter((l) => l !== "").join("\n").replace(/\n(Facts:|Safety:|Owner's settings:|Style:|<business_brain>)/g, "\n\n$1");
   const dynamic = [
     `Current date and time in India: ${istNow()}.`,
     isFirstReply
@@ -169,13 +187,13 @@ export function buildChatSystemParts(brain: Brain, isFirstReply: boolean): { sta
 }
 
 /** The whole system prompt as one string (used by tests and for reading). */
-export function buildChatSystem(brain: Brain, isFirstReply: boolean): string {
-  const { stable, dynamic } = buildChatSystemParts(brain, isFirstReply);
+export function buildChatSystem(brain: Brain, isFirstReply: boolean, settings?: ReceptionistSettings): string {
+  const { stable, dynamic } = buildChatSystemParts(brain, isFirstReply, settings);
   return `${stable}\n\n${dynamic}`;
 }
 
-function chatSystemBlocks(brain: Brain, isFirstReply: boolean): Anthropic.TextBlockParam[] {
-  const { stable, dynamic } = buildChatSystemParts(brain, isFirstReply);
+function chatSystemBlocks(brain: Brain, isFirstReply: boolean, settings?: ReceptionistSettings): Anthropic.TextBlockParam[] {
+  const { stable, dynamic } = buildChatSystemParts(brain, isFirstReply, settings);
   return [
     { type: "text", text: stable, cache_control: { type: "ephemeral" } },
     { type: "text", text: dynamic },
@@ -193,11 +211,11 @@ export function guessLanguage(text: string): "Hindi" | "Hinglish" | "English" {
   return hits >= 1 && hits / Math.max(words.length, 1) >= 0.15 ? "Hinglish" : "English";
 }
 
-export function aiIntro(brain: Brain, customerText: string): string {
+export function aiIntro(brain: Brain, customerText: string, name = "Reppy"): string {
   const lang = guessLanguage(customerText);
-  if (lang === "Hindi") return `नमस्ते! मैं Reppy हूँ, ${brain.name} की AI सहायक।`;
-  if (lang === "Hinglish") return `Namaste! Main Reppy hoon, ${brain.name} ki AI assistant.`;
-  return `Hi! I'm Reppy, ${brain.name}'s AI assistant.`;
+  if (lang === "Hindi") return `नमस्ते! मैं ${name} हूँ, ${brain.name} की AI सहायक।`;
+  if (lang === "Hinglish") return `Namaste! Main ${name} hoon, ${brain.name} ki AI assistant.`;
+  return `Hi! I'm ${name}, ${brain.name}'s AI assistant.`;
 }
 
 /**
@@ -261,10 +279,11 @@ export async function chatTurnStream(
   ownerNote: string | undefined,
   onReply: (soFar: string) => void,
   provider: ChatProvider = "claude",
+  settings?: ReceptionistSettings,
 ): Promise<ChatTurn> {
   const isFirstReply = !history.some((h) => h.role === "reppy");
   if (provider === "gemini") {
-    const { stable, dynamic } = buildChatSystemParts(brain, isFirstReply);
+    const { stable, dynamic } = buildChatSystemParts(brain, isFirstReply, settings);
     let sent = "";
     return geminiStreamJson({
       system: `${stable}\n\n${dynamic}`,
@@ -282,7 +301,7 @@ export async function chatTurnStream(
   const stream = ai().messages.stream({
     model: MODELS.chat,
     max_tokens: 800,
-    system: chatSystemBlocks(brain, isFirstReply),
+    system: chatSystemBlocks(brain, isFirstReply, settings),
     messages: buildMessages(history, message, ownerNote),
     output_config: { format: zodOutputFormat(ChatTurnSchema), effort: "low" },
   });

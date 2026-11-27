@@ -1,6 +1,7 @@
 "use client";
 import { Play, Square } from "lucide-react";
 import { useEffect, useState } from "react";
+import { saveReceptionist } from "@/app/dashboard/actions";
 import { Panel, PageHeader } from "@/components/dashboard/shell";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Segmented, Select, Textarea, Toggle } from "@/components/ui/controls";
@@ -23,12 +24,13 @@ const greetings: Record<ReceptionistConfig["personality"], (biz: string, name: s
 };
 
 export default function ReceptionistPage() {
-  const { getBusiness, getReceptionistConfig } = useData();
+  const { getBusiness, getReceptionistConfig, live } = useData();
   const biz = getBusiness();
   const toast = useToast();
   const [saved, setSaved] = useState<ReceptionistConfig>(getReceptionistConfig());
   const [cfg, setCfg] = useState<ReceptionistConfig>(saved);
   const [speaking, setSpeaking] = useState(false);
+  const [saving, setSaving] = useState(false);
   const dirty = JSON.stringify(cfg) !== JSON.stringify(saved);
   const set = <K extends keyof ReceptionistConfig>(k: K, v: ReceptionistConfig[K]) => setCfg((c) => ({ ...c, [k]: v }));
 
@@ -70,13 +72,19 @@ export default function ReceptionistPage() {
               </Button>
             )}
             <Button
-              disabled={!dirty}
-              onClick={() => {
+              disabled={!dirty || saving}
+              onClick={async () => {
+                if (live) {
+                  setSaving(true);
+                  const r = await saveReceptionist(cfg);
+                  setSaving(false);
+                  if (!r.ok) return toast(r.error);
+                }
                 setSaved(cfg);
                 toast("Changes saved. Reppy is using them from the next message.");
               }}
             >
-              Save changes
+              {saving ? "Saving…" : "Save changes"}
             </Button>
           </>
         }
@@ -115,7 +123,7 @@ export default function ReceptionistPage() {
               />
             </div>
             <div className="mt-5">
-              <Field label="Greeting" hint="Reppy always says it's an AI assistant in the first message.">
+              <Field label="Greeting for phone calls" hint="Used when calls arrive in a later phase. On WhatsApp, the first reply always opens with a short line saying it's an AI assistant.">
                 <Textarea rows={3} value={cfg.greeting} onChange={(e) => set("greeting", e.target.value)} />
               </Field>
             </div>
@@ -149,7 +157,7 @@ export default function ReceptionistPage() {
             <div className="divide-y divide-line">
               <Toggle checked={cfg.escalation.upset} onChange={(v) => set("escalation", { ...cfg.escalation, upset: v })} label="Customer sounds upset" description="Reppy apologises once and alerts you on WhatsApp right away." />
               <Toggle checked={cfg.escalation.asksForHuman} onChange={(v) => set("escalation", { ...cfg.escalation, asksForHuman: v })} label="Customer asks for a person" />
-              <Toggle checked={cfg.escalation.emergency} onChange={(v) => set("escalation", { ...cfg.escalation, emergency: v })} label="Emergency is mentioned" description="Reppy tells them to call 112 and alerts you. It never gives medical advice." />
+              <Toggle checked onChange={() => toast("Emergencies always come to you. This can't be switched off.")} label="Emergency is mentioned" description="Always on. Reppy tells them to call 112 and alerts you. It never gives medical advice." />
               <Toggle checked={cfg.escalation.refund} onChange={(v) => set("escalation", { ...cfg.escalation, refund: v })} label="Refunds or discounts" description="Reppy never promises money back or discounts on its own." />
             </div>
           </Panel>
@@ -157,7 +165,7 @@ export default function ReceptionistPage() {
           <Panel title="Booking and follow-up">
             <div className="divide-y divide-line">
               <Toggle checked={cfg.missedCallFollowUp} onChange={(v) => set("missedCallFollowUp", v)} label="WhatsApp follow-up after a missed call" description="Only to customers who haven't opted out, using an approved WhatsApp template." />
-              <Toggle checked={cfg.depositForNewCustomers} onChange={(v) => set("depositForNewCustomers", v)} label="Ask new customers for a UPI deposit" description={`Sends a UPI link to ${biz.upiId}. You confirm when the money arrives.`} />
+              <Toggle checked={cfg.depositForNewCustomers} onChange={(v) => set("depositForNewCustomers", v)} label="Ask new customers for a UPI deposit" description={biz.upiId ? `When booking a first-time customer, Reppy sends a UPI link to ${biz.upiId}. You confirm when the money arrives.` : "Add your UPI ID in Settings first."} />
             </div>
             <div className="mt-4">
               <Field label="Extra instructions" hint="Plain English. Customers can't change these, however they ask.">

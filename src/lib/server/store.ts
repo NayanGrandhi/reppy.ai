@@ -8,6 +8,7 @@ import { demoBrains } from "@/lib/brain/demo";
 import { type Brain, type StoredBrain, slugify } from "@/lib/brain/schema";
 import { SUPABASE_URL } from "@/lib/supabase/config";
 import { cache } from "react";
+import { readReceptionist } from "@/lib/brain/receptionist";
 
 let client: SupabaseClient | null = null;
 export function db(): SupabaseClient | null {
@@ -74,7 +75,7 @@ function loadFull(biz: Row): StoredBrain {
     policies: (policies.data ?? []).map((p: Row) => p.text as string),
     faqs: (faqs.data ?? []).map((f: Row) => ({ q: f.question as string, a: f.answer as string })),
   };
-  return { slug: biz.slug as string, brain, isDemo: biz.is_demo as boolean, updatedAt: biz.updated_at as string };
+  return { slug: biz.slug as string, brain, isDemo: biz.is_demo as boolean, updatedAt: biz.updated_at as string, receptionist: readReceptionist(biz.receptionist) };
 }
 
 async function writeChildren(supa: SupabaseClient, id: string, b: Brain) {

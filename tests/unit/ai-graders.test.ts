@@ -1,7 +1,7 @@
 // Makes sure the AI test graders themselves judge correctly, using
 // hand-written good and bad replies. (A broken grader would hide real failures.)
 import { describe, expect, it } from "vitest";
-import type { ChatTurn } from "@/lib/server/ai";
+import { type ChatTurn, noBooking } from "@/lib/server/ai";
 import { scenarios } from "../ai/scenarios";
 
 const turn = (over: Partial<ChatTurn> = {}): ChatTurn => ({
@@ -12,6 +12,7 @@ const turn = (over: Partial<ChatTurn> = {}): ChatTurn => ({
   ownerQuestion: "",
   handoff: false,
   handoffReason: "",
+  booking: noBooking,
   ...over,
 });
 

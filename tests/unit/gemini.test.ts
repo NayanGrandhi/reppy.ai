@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { ChatTurnSchema, chatProvider } from "@/lib/server/ai";
+import { ChatTurnSchema, chatProvider, noBooking } from "@/lib/server/ai";
 import { geminiSchema, geminiStreamJson } from "@/lib/server/gemini";
 
 const env = { ...process.env };
@@ -42,7 +42,7 @@ describe("Gemini streaming", () => {
 
   it("streams text, then validates the JSON", async () => {
     process.env.GEMINI_API_KEY = "test";
-    const full = JSON.stringify({ reply: "Haircut ₹400 hai.", language: "Hinglish", intent: "Price enquiry", needsOwner: false, ownerQuestion: "", handoff: false, handoffReason: "" });
+    const full = JSON.stringify({ reply: "Haircut ₹400 hai.", language: "Hinglish", intent: "Price enquiry", needsOwner: false, ownerQuestion: "", handoff: false, handoffReason: "", booking: noBooking });
     const pieces = [full.slice(0, 20), full.slice(20, 41), full.slice(41)];
     const seen: string[] = [];
     let sentHeaders: Headers | null = null;
@@ -72,7 +72,7 @@ describe("Gemini streaming", () => {
   it("falls back to the lighter model when Google is overloaded", async () => {
     process.env.GEMINI_API_KEY = "test";
     const urls: string[] = [];
-    const full = JSON.stringify({ reply: "Hi", language: "English", intent: "Other", needsOwner: false, ownerQuestion: "", handoff: false, handoffReason: "" });
+    const full = JSON.stringify({ reply: "Hi", language: "English", intent: "Other", needsOwner: false, ownerQuestion: "", handoff: false, handoffReason: "", booking: noBooking });
     const out = await geminiStreamJson({
       system: "s",
       messages: [{ role: "user", text: "hi" }],

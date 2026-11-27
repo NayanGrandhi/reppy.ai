@@ -33,6 +33,11 @@ const handoff: Check = { label: "alerts the owner (handoff)", test: (t) => t.han
 const noHandoff: Check = { label: "no needless handoff", test: (t) => !t.handoff };
 const short: Check = { label: "short, WhatsApp-length reply", test: (_t, r) => r.length <= 600 };
 const notConfirmed: Check = avoids(/\b(is|are|has been|have been) (now )?(confirmed|booked)\b|booking (is )?confirmed|confirm(ed)? ho gay|book ho gay|पक्की हो गई/i, "never claims a booking is confirmed");
+const readyToBook = (service: RegExp, time: string): Check => ({
+  label: `hands over a confirmed booking (${service}, ${time})`,
+  test: (t) => t.booking.ready && service.test(t.booking.service) && t.booking.time === time && /\d{10}/.test(t.booking.customerPhone.replace(/\D/g, "")),
+});
+const notReady: Check = { label: "doesn't book before the customer confirms", test: (t) => !t.booking.ready };
 const devanagari = mentions(/[ऀ-ॿ]/, "replies in Devanagari");
 const romanOnly = avoids(/[ऀ-ॿ]/, "replies in Roman script");
 
@@ -41,6 +46,14 @@ export const scenarios: Scenario[] = [
   { id: "salon-price", category: "salon", business: "glow-studio", messages: ["How much is a men's haircut?"], checks: [mentions(/400/), intent("Price enquiry"), noOwner, short] },
   { id: "salon-timings", category: "salon", business: "glow-studio", messages: ["What time do you open on Saturday?"], checks: [mentions(/9(:00)?\s*(am|a\.m\.)|9 ?am|09:00/i), intent("Timings & location"), noOwner] },
   { id: "salon-closed-day", category: "salon", business: "glow-studio", messages: ["Are you open on Tuesday?"], checks: [mentions(/closed|not open|band/i), noOwner] },
+  {
+    id: "salon-booking-complete",
+    category: "salon",
+    business: "glow-studio",
+    messages: ["I want a men's haircut next Monday at 12 noon. I'm Amit, 98200 12345", "Yes, please confirm"],
+    checks: [readyToBook(/haircut \(men\)/i, "12:00"), notConfirmed, intent("Book appointment")],
+  },
+  { id: "salon-booking-asks-details", category: "salon", business: "glow-studio", messages: ["Book me a blow-dry tomorrow at 3pm"], checks: [notReady, mentions(/name|number|mobile|phone/i, "asks for name and mobile")] },
   { id: "salon-booking", category: "salon", business: "glow-studio", messages: ["I'd like a hydra facial", "This Friday at 4pm please"], checks: [notConfirmed, mentions(/note|request|team|confirm/i, "says the team will confirm"), intent("Book appointment")] },
   { id: "salon-staff", category: "salon", business: "glow-studio", messages: ["Who does keratin treatments?"], checks: [mentions(/Anita/), noOwner] },
   { id: "salon-deposit", category: "salon", business: "glow-studio", messages: ["Do I need to pay anything in advance for keratin?"], checks: [mentions(/200/), mentions(/UPI|glowstudio@okhdfcbank/i, "mentions UPI"), avoids(/card number|CVV|bank account/i)] },

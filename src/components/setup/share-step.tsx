@@ -21,12 +21,14 @@ export function ShareStep({
   error,
   onSubmit,
   onUseSample,
+  onManual,
 }: {
   status: Status | null;
   busy: boolean;
   error: string | null;
   onSubmit: (input: ShareInput) => void;
   onUseSample: (which: "glow-studio" | "mehta-family-clinic") => void;
+  onManual: () => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [url, setUrl] = useState("");
@@ -155,9 +157,16 @@ export function ShareStep({
         {status && !status.ai && (
           <div className="rounded-2xl bg-saffron-500/[0.08] p-4 text-[13.5px] text-fg-2 ring-1 ring-saffron-500/25">
             <div className="font-medium text-saffron-400">AI not switched on yet</div>
-            Reading photos needs the Claude API key. Until it&apos;s added, start from a sample business below.
+            Reading photos needs the Claude API key. Until it&apos;s added, type your details in or start from a sample below.
           </div>
         )}
+        <div className="rounded-2xl p-5 ring-1 ring-line">
+          <h2 className="text-[15px] font-medium">Rather type it in?</h2>
+          <p className="mt-1 text-[13.5px] text-fg-3">Fill in your services, prices, hours and team yourself. Takes about 5 minutes and works without the AI.</p>
+          <Button type="button" size="sm" className="mt-4 w-full" onClick={onManual}>
+            Type my details in
+          </Button>
+        </div>
         <div className="rounded-2xl p-5 ring-1 ring-line">
           <h2 className="text-[15px] font-medium">No files handy?</h2>
           <p className="mt-1 text-[13.5px] text-fg-3">Start from a sample and edit it on the next screen.</p>

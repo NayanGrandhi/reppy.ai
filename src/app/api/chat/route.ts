@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AiNotConfigured, aiIntro, chatProvider, chatTurnStream } from "@/lib/server/ai";
 import { LIMITS, clientIp, rateLimited } from "@/lib/server/limits";
+import { bookFromChat } from "@/lib/server/chat-booking";
 import { bumpUsage, getBrain, logExchange, recordGap } from "@/lib/server/store";
 
 export const maxDuration = 60;
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
 
   const brain = { ...stored.brain, faqs: [...stored.brain.faqs, ...sessionFaqs] };
   const isFirstReply = !history.some((h) => h.role === "reppy");
-  const intro = isFirstReply ? `${aiIntro(brain, text || ownerAnswer || "")} ` : "";
+  const intro = isFirstReply ? `${aiIntro(brain, text || ownerAnswer || "", stored.receptionist?.name)} ` : "";
   const redact = brain.type === "Clinic";
 
   const enc = new TextEncoder();
@@ -55,8 +56,24 @@ export async function POST(req: Request) {
       const send = (obj: unknown) => controller.enqueue(enc.encode(`${JSON.stringify(obj)}\n`));
       try {
         if (intro) send({ type: "delta", text: intro });
-        const turn = await chatTurnStream(brain, history, text, ownerAnswer, (soFar) => send({ type: "delta", text: intro + soFar }), provider);
-        const reply = intro + turn.reply.trim();
+        const turn = await chatTurnStream(brain, history, text, ownerAnswer, (soFar) => send({ type: "delta", text: intro + soFar }), provider, stored.receptionist);
+        let reply = intro + turn.reply.trim();
+
+        // Customer confirmed a booking: check the live calendar and book it
+        // (or, for sample businesses, only check). The result is written by
+        // our code, never by the AI.
+        let booking: { ok: boolean; demo: boolean } | null = null;
+        if (turn.booking?.ready) {
+          const r = await bookFromChat(slug, stored.isDemo, turn.booking, turn.language).catch((e) => {
+            console.error("chat booking failed", e);
+            return null;
+          });
+          if (r) {
+            reply = `${reply}\n\n${r.text}`;
+            booking = { ok: r.ok, demo: r.demo };
+            send({ type: "delta", text: reply });
+          }
+        }
 
         if (turn.needsOwner && turn.ownerQuestion && !stored.isDemo) await recordGap(slug, turn.ownerQuestion).catch(() => {});
         const sessionId = await logExchange(
@@ -70,7 +87,7 @@ export async function POST(req: Request) {
           { redact },
         ).catch(() => parsed.data.sessionId ?? null);
 
-        send({ type: "done", ...turn, reply, sessionId, provider });
+        send({ type: "done", ...turn, reply, sessionId, provider, booked: booking });
       } catch (e) {
         console.error("chat failed", e);
         const busy = e instanceof Error && e.message.startsWith("The free demo AI is busy");

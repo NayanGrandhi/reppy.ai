@@ -6,7 +6,11 @@ vi.mock("@/lib/server/ai", async (orig) => {
   return {
     ...real,
     aiConfigured: () => Boolean(process.env.ANTHROPIC_API_KEY),
-    chatTurnStream: vi.fn(async (_b, _h, _m, _o, onReply: (s: string) => void) => {
+    chatTurnStream: vi.fn(async (_b, _h, m: string, _o, onReply: (s: string) => void) => {
+      if (m === "Haan, confirm") {
+        onReply("Checking that slot for you…");
+        return { reply: "Checking that slot for you…", language: "Hinglish", intent: "Book appointment", needsOwner: false, ownerQuestion: "", handoff: false, handoffReason: "", booking: { ready: true, service: "Haircut (men)", staff: "", date: "2026-11-30", time: "12:00", customerName: "Amit", customerPhone: "98200 12345", depositApplies: false } };
+      }
       onReply("Men's haircut");
       onReply("Men's haircut ₹400 hai.");
       return { reply: "Men's haircut ₹400 hai.", language: "Hinglish", intent: "Price enquiry", needsOwner: false, ownerQuestion: "", handoff: false, handoffReason: "" };
@@ -19,6 +23,9 @@ vi.mock("@/lib/server/store", async (orig) => {
   const real = await orig<typeof import("@/lib/server/store")>();
   return { ...real, logExchange: (...a: unknown[]) => logExchange(...a) };
 });
+
+const bookFromChat = vi.fn(async (..._a: unknown[]) => ({ ok: true, demo: true, text: "✅ Booking pakki: Haircut (men), Anita ke saath, Mon, 30 Nov ko 12:00 pm." }));
+vi.mock("@/lib/server/chat-booking", () => ({ bookFromChat: (...a: unknown[]) => bookFromChat(...a) }));
 
 const { POST } = await import("@/app/api/chat/route");
 
@@ -76,6 +83,18 @@ describe("POST /api/chat", () => {
     expect(logExchange).toHaveBeenCalledWith("mehta-family-clinic", null, expect.any(Array), { redact: true });
     await events(await call({ slug: "glow-studio", message: "hi", history: [] }));
     expect(logExchange).toHaveBeenLastCalledWith("glow-studio", null, expect.any(Array), { redact: false });
+  });
+  it("adds the booking result written by our code, not the AI", async () => {
+    const ev = await events(await call({ slug: "glow-studio", message: "Haan, confirm", history: [{ role: "customer", text: "hi" }, { role: "reppy", text: "Hi!" }] }));
+    const done = ev.at(-1);
+    expect(bookFromChat).toHaveBeenCalledWith("glow-studio", true, expect.objectContaining({ ready: true, time: "12:00" }), "Hinglish");
+    expect(done.reply).toBe("Checking that slot for you…\n\n✅ Booking pakki: Haircut (men), Anita ke saath, Mon, 30 Nov ko 12:00 pm.");
+    expect(done.booked).toEqual({ ok: true, demo: true });
+  });
+  it("doesn't try to book until the customer has confirmed", async () => {
+    bookFromChat.mockClear();
+    await events(await call({ slug: "glow-studio", message: "Haircut kitne ka hai?", history: [] }));
+    expect(bookFromChat).not.toHaveBeenCalled();
   });
   it("stops at the daily reply cap for a business", async () => {
     vi.stubEnv("DAILY_MESSAGE_CAP", "0");

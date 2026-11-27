@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import { sampleDashboard } from "@/lib/dashboard/sample";
+import { readReceptionist } from "@/lib/brain/receptionist";
 import type { DashboardData } from "@/lib/dashboard/types";
 import type { DailyVolume } from "@/lib/mock/data";
 import type { Appointment, Business, Conversation, Customer, Intent, KnowledgeGap, Language, Service, Staff } from "@/lib/types";
@@ -189,7 +189,6 @@ export async function loadLiveDashboard(supa: SupabaseClient, user: User): Promi
     ...knowledgeGaps.filter((g) => g.status === "waiting").slice(0, 2).map((g) => ({ q: g.question, count: g.timesAsked, unanswered: true })),
   ];
 
-  const sample = sampleDashboard();
   return {
     mode: "live",
     today,
@@ -203,12 +202,10 @@ export async function loadLiveDashboard(supa: SupabaseClient, user: User): Promi
     knowledgeGaps,
     changeLog: [],
     faqs: (faqsQ.data ?? []).map((f: Row) => ({ id: f.id as string, q: f.question as string, a: f.answer as string })),
-    receptionist: {
-      ...sample.receptionist,
-      greeting: `Hi, thanks for reaching ${business.name}! I'm Reppy, the AI assistant. How can I help you today?`,
-      languages: business.languages.length ? business.languages : sample.receptionist.languages,
-      instructions: (biz.booking_notes as string) || "",
-    },
+    receptionist: (() => {
+      const r = readReceptionist(biz.receptionist);
+      return { ...r, greeting: r.greeting || `Hi, thanks for reaching ${business.name}! I'm ${r.name}, the AI assistant. How can I help you today?` };
+    })(),
     dailyVolume,
     peakHours,
     topQuestions,

@@ -8,7 +8,7 @@ import { ReviewStep } from "@/components/setup/review-step";
 import { type ShareInput, ShareStep } from "@/components/setup/share-step";
 import { useStatus } from "@/components/setup/use-status";
 import { demoBrains } from "@/lib/brain/demo";
-import type { Brain, Missing } from "@/lib/brain/schema";
+import { type Brain, emptyBrain, type Missing } from "@/lib/brain/schema";
 import { cn } from "@/lib/utils";
 
 type Source = { kind: "website" | "image" | "pdf" | "text"; label: string };
@@ -98,7 +98,8 @@ export default function SetupPage() {
       try {
         sessionStorage.removeItem(DRAFT_KEY);
       } catch {}
-      router.push(`/chat/${data.slug}?new=1`);
+      // Signed-in owners land on their dashboard; everyone else tries the chat.
+      router.push(data.owned ? "/dashboard" : `/chat/${data.slug}?new=1`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save.");
       setBusy(false);
@@ -161,6 +162,15 @@ export default function SetupPage() {
               busy={busy}
               error={error}
               onSubmit={extract}
+              onManual={() => {
+                // Start with sensible defaults the owner edits: Mon–Sat 10–7, Sunday closed.
+                const b = emptyBrain();
+                b.hours = (["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const).map((day) =>
+                  day === "Sunday" ? { day, open: "", close: "", closed: true } : { day, open: "10:00", close: "19:00", closed: false },
+                );
+                b.services = [{ name: "", category: "", priceINR: null, priceNote: "", durationMin: 30, staff: [] }];
+                openReview({ brain: b, missing: [], warnings: [], sources: [{ kind: "text", label: "Typed in by the owner" }] });
+              }}
               onUseSample={(slug) => {
                 const d = demoBrains.find((b) => b.slug === slug)!;
                 openReview({ brain: { ...structuredClone(d.brain), name: `${d.brain.name} (copy)` }, missing: [], warnings: [], sources: [{ kind: "text", label: `Sample: ${d.brain.name}` }] });

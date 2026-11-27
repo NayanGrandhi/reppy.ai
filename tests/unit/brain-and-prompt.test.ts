@@ -1,3 +1,4 @@
+import { readReceptionist } from "@/lib/brain/receptionist";
 import { describe, expect, it } from "vitest";
 import { demoBrains } from "@/lib/brain/demo";
 import { BrainSchema, emptyBrain, slugify } from "@/lib/brain/schema";
@@ -56,8 +57,15 @@ describe("chat safety rules in the system prompt", () => {
     expect(salonPrompt).toContain("already started your first message");
     expect(clinicPrompt).toContain("already introduced yourself");
   });
-  it("never lets Reppy confirm bookings before the calendar exists", () => {
-    expect(salonPrompt).toContain("Never say a booking is confirmed");
+  it("never lets the AI confirm bookings itself (the calendar check does)", () => {
+    expect(salonPrompt).toContain("Never say it's booked yourself");
+  });
+  it("follows the owner's AI Receptionist settings", () => {
+    const p = buildChatSystem(salon, true, readReceptionist({ name: "Asha", personality: "Formal", languages: ["English", "Hinglish"], instructions: "Offer Anita first for colour." }));
+    expect(p).toContain("You are Asha");
+    expect(p).toContain("No emoji, no slang");
+    expect(p).toContain("If the customer writes in Hindi, reply in English");
+    expect(p).toContain("Offer Anita first for colour.");
   });
   it("adds clinic rules: no medical advice, 112 for emergencies", () => {
     for (const rule of templates.Clinic.extraRules) expect(clinicPrompt).toContain(rule);
