@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { AiNotConfigured, aiIntro, chatProvider, chatTurnStream } from "@/lib/server/ai";
 import { LIMITS, clientIp, rateLimited } from "@/lib/server/limits";
-import { bookFromChat } from "@/lib/server/chat-booking";
+import { bookFromChat, bookingGate, fmtTime, say } from "@/lib/server/chat-booking";
 import { bumpUsage, getBrain, logExchange, recordGap } from "@/lib/server/store";
 
 export const maxDuration = 60;
@@ -63,7 +63,15 @@ export async function POST(req: Request) {
         // (or, for sample businesses, only check). The result is written by
         // our code, never by the AI.
         let booking: { ok: boolean; demo: boolean } | null = null;
-        if (turn.booking?.ready) {
+        const gate = turn.booking?.ready ? bookingGate(history) : null;
+        if (gate === "already-done" || gate === "confirm-first") {
+          // The AI jumped ahead; our code asks for the yes (or says it's done).
+          const b = turn.booking;
+          const day = /^\d{4}-\d{2}-\d{2}$/.test(b.date) ? new Date(`${b.date}T12:00:00+05:30`).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short" }) : b.date;
+          const line = gate === "already-done" ? say.alreadyDone(turn.language) : say.confirmFirst(turn.language, b.service, day, /^\d{2}:\d{2}$/.test(b.time) ? fmtTime(b.time) : b.time);
+          reply = `${intro}${/checking/i.test(turn.reply) ? "" : `${turn.reply.trim()}\n\n`}${line}`;
+          send({ type: "delta", text: reply });
+        } else if (gate === "ok") {
           const r = await bookFromChat(slug, stored.isDemo, turn.booking, turn.language).catch((e) => {
             console.error("chat booking failed", e);
             return null;

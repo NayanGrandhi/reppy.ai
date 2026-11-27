@@ -40,7 +40,7 @@ const when = (date: string, time: string) => {
   const day = d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short" });
   return { day, time: fmtTime(time) };
 };
-const fmtTime = (t: string) => {
+export const fmtTime = (t: string) => {
   const [h, m] = t.split(":").map(Number);
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
 };
@@ -68,6 +68,9 @@ export const say = {
     l === "English" || l === "Other" ? "Please share a 10-digit mobile number so we can send the confirmation." : "Confirmation bhejne ke liye apna 10-digit mobile number bhejiye.",
   unknownService: (l: Lang) =>
     l === "English" || l === "Other" ? "I couldn't match that service. Which service from our list would you like?" : "Woh service list mein nahi mili. Hamari list mein se kaunsi service chahiye?",
+  alreadyDone: (l: Lang) => (l === "English" || l === "Other" ? "That booking is already done ✅. Anything else I can help with?" : "Yeh booking ho chuki hai ✅. Aur kuch madad chahiye?"),
+  confirmFirst: (l: Lang, svc: string, day: string, time: string) =>
+    l === "English" || l === "Other" ? `Just to confirm: ${svc}, ${day} at ${time}. Shall I book it?` : `Confirm kar dein: ${svc}, ${day} ko ${time}. Book kar doon?`,
   failed: (l: Lang) => (l === "English" || l === "Other" ? "I couldn't book that just now. The team will confirm on WhatsApp shortly." : "Abhi booking nahi ho payi. Team jaldi WhatsApp par confirm karegi."),
 };
 
@@ -80,6 +83,19 @@ const reasonShort: Record<BookingFailure, string> = {
   slot_taken: "already booked",
   staff_cannot_do_service: "they don't do this service",
 };
+
+/**
+ * Guards around the AI's "ready" flag:
+ * - the customer must be answering a question from us (never book on the very
+ *   first message, even if it had every detail), and
+ * - don't book again right after a ✅ booking line.
+ */
+export function bookingGate(history: { role: "customer" | "reppy"; text: string }[]): "ok" | "confirm-first" | "already-done" {
+  const lastReppy = [...history].reverse().find((h) => h.role === "reppy");
+  if (!lastReppy) return "confirm-first";
+  if (lastReppy.text.includes("✅")) return "already-done";
+  return "ok";
+}
 
 export async function bookFromChat(slug: string, isDemo: boolean, req: BookingRequest, lang: Lang): Promise<ChatBookingResult | null> {
   const supa = db();

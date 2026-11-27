@@ -25,7 +25,7 @@ vi.mock("@/lib/server/store", async (orig) => {
 });
 
 const bookFromChat = vi.fn(async (..._a: unknown[]) => ({ ok: true, demo: true, text: "✅ Booking pakki: Haircut (men), Anita ke saath, Mon, 30 Nov ko 12:00 pm." }));
-vi.mock("@/lib/server/chat-booking", () => ({ bookFromChat: (...a: unknown[]) => bookFromChat(...a) }));
+vi.mock("@/lib/server/chat-booking", async (orig) => ({ ...(await orig<typeof import("@/lib/server/chat-booking")>()), bookFromChat: (...a: unknown[]) => bookFromChat(...a) }));
 
 const { POST } = await import("@/app/api/chat/route");
 
@@ -90,6 +90,18 @@ describe("POST /api/chat", () => {
     expect(bookFromChat).toHaveBeenCalledWith("glow-studio", true, expect.objectContaining({ ready: true, time: "12:00" }), "Hinglish");
     expect(done.reply).toBe("Checking that slot for you…\n\n✅ Booking pakki: Haircut (men), Anita ke saath, Mon, 30 Nov ko 12:00 pm.");
     expect(done.booked).toEqual({ ok: true, demo: true });
+  });
+  it("asks for a yes instead of booking straight from the first message", async () => {
+    bookFromChat.mockClear();
+    const done = (await events(await call({ slug: "glow-studio", message: "Haan, confirm", history: [] }))).at(-1);
+    expect(bookFromChat).not.toHaveBeenCalled();
+    expect(done.reply).toContain("Book kar doon?");
+  });
+  it("doesn't book twice after a ✅ line", async () => {
+    bookFromChat.mockClear();
+    const done = (await events(await call({ slug: "glow-studio", message: "Haan, confirm", history: [{ role: "customer", text: "yes" }, { role: "reppy", text: "✅ Booking pakki" }] }))).at(-1);
+    expect(bookFromChat).not.toHaveBeenCalled();
+    expect(done.reply).toContain("ho chuki hai");
   });
   it("doesn't try to book until the customer has confirmed", async () => {
     bookFromChat.mockClear();

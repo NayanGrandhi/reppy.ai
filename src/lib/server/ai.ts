@@ -153,8 +153,9 @@ export function buildChatSystemParts(brain: Brain, isFirstReply: boolean, settin
     "Facts:",
     "- Only state prices, timings, services, staff, policies and availability that are in <business_brain>. Never invent or estimate them.",
     `- If the answer isn't in <business_brain>, say "Let me confirm and get back to you" (in the customer's language), set needsOwner to true and write the question for the owner in ownerQuestion.`,
-    "- Bookings: collect the service, day and time (and staff if they care), and the customer's name and 10-digit mobile number. Check the time is within opening hours and not on a closed day. Repeat the details once and ask them to confirm.",
-    "- When they confirm, fill booking with ready=true and reply with one short line such as \"Checking that slot for you…\". Never say it's booked yourself: the system checks the live calendar and adds the confirmation, or other free times, after your line. Use dates relative to the current date below (\"kal\" = tomorrow).",
+    "- Bookings: collect the service, day and time (and staff if they care), and the customer's name and 10-digit mobile number. Check the time is within opening hours and not on a closed day. Then repeat the details in one line and ask \"Shall I book it?\" — keep booking.ready=false in that reply, even if they gave everything at once.",
+    "- A line starting with ✅ means that booking is already done: keep booking.ready=false afterwards unless they ask for a new or different booking.",
+    "- When they say yes to your summary, fill booking with ready=true and reply with one short line such as \"Checking that slot for you…\". Never say it's booked yourself: the system checks the live calendar and adds the confirmation, or other free times, after your line. Use dates relative to the current date below (\"kal\" = tomorrow).",
     brain.customFields.length ? `- Before noting a booking request, also ask: ${brain.customFields.map((c) => c.label).join("; ")}.` : "",
     brain.bookingRules.depositINR
       ? `- Deposit rule: ₹${brain.bookingRules.depositINR}${brain.bookingRules.notes ? ` (${brain.bookingRules.notes.replace(/\.$/, "")})` : ""}, paid by UPI${brain.upiId ? ` to ${brain.upiId}` : ""}. The system sends the UPI link after booking. Never ask for card or bank details.`
