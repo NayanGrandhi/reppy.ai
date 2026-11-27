@@ -7,6 +7,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { demoBrains } from "@/lib/brain/demo";
 import { type Brain, type StoredBrain, slugify } from "@/lib/brain/schema";
 import { SUPABASE_URL } from "@/lib/supabase/config";
+import { cache } from "react";
 
 let client: SupabaseClient | null = null;
 export function db(): SupabaseClient | null {
@@ -31,15 +32,16 @@ function mem(): Mem {
 // ───────── mapping between Brain and tables ─────────
 type Row = Record<string, unknown>;
 
-async function loadFull(supa: SupabaseClient, biz: Row): Promise<StoredBrain> {
-  const id = biz.id as string;
-  const [staff, services, hours, policies, faqs] = await Promise.all([
-    supa.from("staff").select("*").eq("business_id", id).order("position"),
-    supa.from("services").select("*").eq("business_id", id).order("position"),
-    supa.from("opening_hours").select("*").eq("business_id", id),
-    supa.from("policies").select("*").eq("business_id", id).order("position"),
-    supa.from("faqs").select("*").eq("business_id", id).order("position"),
-  ]);
+/** Everything about a business in one database request (one round trip). */
+const FULL_SELECT = "*, staff(*), services(*), opening_hours(*), policies(*), faqs(*)";
+const byPosition = (rows: unknown) => ((rows as Row[]) ?? []).sort((a, b) => (a.position as number) - (b.position as number));
+
+function loadFull(biz: Row): StoredBrain {
+  const staff = { data: byPosition(biz.staff) };
+  const services = { data: byPosition(biz.services) };
+  const hours = { data: (biz.opening_hours as Row[]) ?? [] };
+  const policies = { data: byPosition(biz.policies) };
+  const faqs = { data: byPosition(biz.faqs) };
   const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const brain: Brain = {
     name: biz.name as string,
@@ -146,13 +148,15 @@ function emptyListBrain(): Brain {
   return { name: "", type: "Other", description: "", address: "", city: "", phone: "", website: "", languages: [], hours: [], services: [], staff: [], policies: [], faqs: [], bookingRules: { bufferMin: null, depositINR: null, notes: "" }, customFields: [], upiId: "" };
 }
 
-export async function getBrain(slug: string): Promise<StoredBrain | null> {
+// cache(): the chat page and its title both ask for the same business in one
+// page view; this makes it a single database request.
+export const getBrain = cache(async (slug: string): Promise<StoredBrain | null> => {
   const supa = db();
   if (!supa) return mem().brains.get(slug) ?? null;
-  const { data, error } = await supa.from("businesses").select("*").eq("slug", slug).maybeSingle();
+  const { data, error } = await supa.from("businesses").select(FULL_SELECT).eq("slug", slug).maybeSingle();
   if (error) throw error;
-  return data ? loadFull(supa, data) : null;
-}
+  return data ? loadFull(data) : null;
+});
 
 async function uniqueSlug(name: string, exists: (s: string) => Promise<boolean>) {
   // A random tail makes private links hard to guess.

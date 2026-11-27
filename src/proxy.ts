@@ -21,5 +21,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/setup/:path*", "/api/brain/:path*"],
+  // Only pages that read the sign-in. Public pages (home, setup, chat) skip it.
+  matcher: ["/dashboard/:path*", "/login"],
 };
